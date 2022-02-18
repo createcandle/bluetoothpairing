@@ -1,5 +1,5 @@
 {
-  "author": "Flatsiedatsie",
+  "author": "CandleSmartHome.com",
   "content_scripts": [
     {
       "css": [
@@ -39,7 +39,7 @@
     }
   },
   "short_name": "Bluetooth",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "web_accessible_resources": [
     "css/*.css",
     "images/*.svg",

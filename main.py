@@ -1,4 +1,4 @@
-"""Bluetoothpairing add-on for Mozilla WebThings Gateway."""
+"""Bluetoothpairing add-on for WebThings Gateway."""
 
 from os import path
 import functools
@@ -9,7 +9,6 @@ import time
 
 sys.path.append(path.join(path.dirname(path.abspath(__file__)), 'lib'))
 
-#from pkg.power_settings import PowerSettingsAdapter  # noqa
 from pkg.bluetoothpairing import BluetoothpairingAPIHandler  # noqa
 
 

@@ -255,7 +255,8 @@
                     clone.querySelectorAll('.switch-slider')[0].htmlFor = list_name + 'toggle-' + this.item_number;
                     this.item_number++;
 
-
+                    //const info_panel = main_item.querySelectorAll('.extension-bluetoothpairing-item-info')[0];
+                    
                     // Pair button click event
                     const pair_button = clone.querySelectorAll('.extension-bluetoothpairing-item-pair-button')[0];
                     
@@ -270,7 +271,7 @@
                             var main_item = target.parentElement.parentElement.parentElement; //parent of "target"
                             //console.log(main_item);
                             main_item.classList.add("extension-bluetoothpairing-item-pairing");
-    						const info_panel = main_item.querySelectorAll('.extension-bluetoothpairing-item-info')[0];
+    						
 
                             // Communicate with backend
                             window.API.postJson(
@@ -288,12 +289,12 @@
     									this.scan_poll(true); // will redraw the lists
                                     }
                                     else{
-                                        info_panel.innerHTML = "Unpairing failed";
+                                        //info_panel.innerHTML = "Unpairing failed";
                                     }
                                 }
     							main_item.classList.remove("extension-bluetoothpairing-item-pairing");
 							
-    							
+    							/*
     							if( Array.isArray(body['update'])){
         							for (var i = 0; i < body['update'].length; i++) {
         								info_panel.innerHTML = info_panel.innerHTML + '<span>' + body['update'][i] + '</span>';
@@ -302,14 +303,13 @@
                                 else{
                                     info_panel.innerHTML = info_panel.innerHTML + '<span>' + body['update'] + '</span>';
                                 }
+                                */
                                 
 
                             }).catch((e) => {
-                                console.log("bluetoothpairing: server connection error while pairing: " + e.toString());
-                                //pre.innerText = e.toString();
+                                console.log("bluetoothpairing: server connection error while pairing: ", e);
     							info_panel.innerHTML = "Error connecting to server";
     							main_item.classList.remove("extension-bluetoothpairing-item-pairing");
-                            
                                 
                             });
                         });
@@ -325,7 +325,7 @@
                             var main_item = target.parentElement.parentElement.parentElement; //parent of "target"
                             //console.log(main_item);
                             main_item.classList.add("extension-bluetoothpairing-item-pairing");
-    						const info_panel = main_item.querySelectorAll('.extension-bluetoothpairing-item-info')[0];
+    						//const info_panel = main_item.querySelectorAll('.extension-bluetoothpairing-item-info')[0];
 
                             // Communicate with backend
                             window.API.postJson(
@@ -356,12 +356,13 @@
                                 }
     							main_item.classList.remove("extension-bluetoothpairing-item-pairing");
 							
-    							info_panel.innerHTML = "";
+    							/*
+                                info_panel.innerHTML = "";
 							
     							for (var i = 0; i < body['update'].length; i++) {
     								info_panel.innerHTML = info_panel.innerHTML + '<span class="">' + body['update'][i] + '</span>';
     							}
-                                
+                                */
 
                             }).catch((e) => {
                                 console.log("bluetoothpairing: server connection error while pairing: " + e.toString());
@@ -403,6 +404,7 @@
                             if(body['update'] == null || body['update'] == ''){
                                 body['update'] = "Device did not respond";
                             }
+                            
                             
 							const info_panel = main_item.querySelectorAll('.extension-bluetoothpairing-item-info')[0];
 							info_panel.innerHTML = "";
