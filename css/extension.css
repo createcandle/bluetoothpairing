@@ -1,0 +1,525 @@
+#extension-bluetoothpairing-icon{
+  display: inline-block;
+  width: 3rem;
+  height: 2rem;
+  background-image: url('../images/menu-icon.svg');
+  background-size: contain;
+  background-size: 2rem;
+  background-repeat: no-repeat;
+  background-position: 0;
+}
+
+#extension-bluetoothpairing-title{
+	text-align:center;
+	font-family: 'Open Sans', sans-serif;
+	font-weight: normal;
+	font-size:1.8rem;
+    margin: 0 auto;
+    display: block;
+    padding: 1rem;
+    padding-left: 3.8rem;
+    font-size: 1.8rem;
+    background-size: 2.8rem;
+    background-repeat: no-repeat;
+    background-position: 0;
+    background-image: url('../images/menu-icon.svg');
+	width:16rem;
+	margin:2rem auto;
+    margin-bottom:6rem;
+}
+
+
+#extension-bluetoothpairing-view button{
+	font-size: 1.6rem;
+	padding: 0.5rem 1rem;
+	border: none;
+}
+
+
+#extension-bluetoothpairing-lists{
+    display:block;
+}
+.extension-bluetoothpairing-scanning #extension-bluetoothpairing-lists{
+    display:none;
+}
+
+#extension-bluetoothpairing-scanning-container{
+    display:none;
+    position:fixed;
+    top:0;
+    left:0;
+    height:100%;
+    width:100%;
+    justify-content:center;
+    align-items:center;
+}
+.extension-bluetoothpairing-scanning #extension-bluetoothpairing-scanning-container{
+    display:flex;
+}
+
+#extension-bluetoothpairing-scanning-centered{
+    width:80%;
+}
+
+
+
+#extension-bluetoothpairing-add-button{
+	position: fixed;
+	bottom: 2rem;
+	right: 2rem;
+	background-image: url(/images/add.svg);
+	border-radius: 2.8rem;
+}
+
+
+
+/*  Progress bar  */
+
+#extension-bluetoothpairing-progress-bar-container{
+    border-radius:1rem;
+    height:2rem;
+    width:80%;
+    margin:2rem auto;
+    background-color:rgba(0,0,0,.4);
+}
+
+#extension-bluetoothpairing-progress-bar{
+    border-radius:1rem;
+    height:2rem;
+    width:0;
+    background-color:rgba(255,255,255,.4);
+}
+
+
+
+
+/*  DELETE  */
+
+/*
+#extension-bluetoothpairing-view .extension-bluetoothpairing-item.delete .rule-delete-button{
+	display:none;
+}
+*/
+
+#extension-bluetoothpairing-view .rule-edit-overlay{
+	left: 0;
+	top: 0;
+	border-radius:.5rem;
+	display:none;
+}
+
+#extension-bluetoothpairing-view .extension-bluetoothpairing-item.delete .rule-edit-overlay{
+	display:block;
+}
+
+
+.extension-bluetoothpairing-name{
+	margin-top:.5rem;
+}
+
+/*.extension-bluetoothpairing-item-paired .extension-bluetoothpairing-item-right,*/
+.extension-bluetoothpairing-item-left{
+	display:none;
+}
+.extension-bluetoothpairing-item-paired .extension-bluetoothpairing-item-left{
+	display:block;
+}
+
+.extension-bluetoothpairing-item-paired .extension-bluetoothpairing-item-right{
+    margin-top:3rem;
+}
+
+
+/*
+.extension-bluetoothpairing-manually-disconnected .extension-bluetoothpairing-item-right{
+	display:block;
+}
+*/
+.extension-bluetoothpairing-item-paired .extension-bluetoothpairing-item-right .extension-bluetoothpairing-item-pair-button-icon{
+    fill:#900;
+}
+
+.extension-bluetoothpairing-item-connected .extension-bluetoothpairing-item-right{
+    display:none;
+}
+
+
+.extension-bluetoothpairing-item-delete-button{ /*  not currenty used  */
+	/*background: url(/images/delete-button.png);
+    background-size: 3.6rem;*/
+    width: 3.6rem;
+    height: 3.6rem;
+    padding: 0;
+    margin: 0;
+    border-radius: 50%;
+    border: 1px solid #979797;
+    cursor: pointer;
+	display:inline-block;
+	opacity:.5;
+}
+
+.extension-bluetoothpairing-item-pair-button{
+	cursor:pointer;
+	opacity:.5;
+	padding: 1rem;
+    border-radius: 50%;
+    background-color: rgba(0,0,0,.1);
+}
+.extension-bluetoothpairing-item-pair-button-icon:hover{
+	opacity:1;
+}
+
+
+.extension-bluetoothpairing-item-paired .extension-bluetoothpairing-item-pair-button{
+	opacity:.7; 
+}
+
+
+.extension-bluetoothpairing-item-paired .extension-bluetoothpairing-item-pair-button:hover{
+	opacity:1;
+	fill:red;
+}
+
+.extension-bluetoothpairing-item-connecting .switch,
+.extension-bluetoothpairing-item-pairing .extension-bluetoothpairing-item-pair-button,
+.extension-bluetoothpairing-item-pairing .extension-bluetoothpairing-item-pair-button:hover{
+	animation:extension-bluetoothpairing-fade 2s linear infinite;
+}
+
+.extension-bluetoothpairing-item-pairing-failed .extension-bluetoothpairing-item-pair-button-icon{
+	fill:red;
+}
+
+/*
+@keyframes extension-bluetoothpairing-spin { 100% { -webkit-transform: rotate(360deg); transform:rotate(360deg); } }
+*/
+
+@keyframes extension-bluetoothpairing-fade {
+  0%{ opacity: .1 }
+  100% { opacity: 1 }
+}
+
+
+.extension-bluetoothpairing-item-delete-button:hover{
+	opacity:1;
+	box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+}
+
+
+.extension-bluetoothpairing-item .rule-delete-dialog{
+	max-width:50rem;
+}
+
+
+
+.extension-bluetoothpairing-name-is-mac{
+    opacity:.3;
+}
+
+
+.extension-bluetoothpairing-item{
+	/*border-bottom:1px solid white;*/
+	padding: 0;
+	display: flex;
+	background-color: #46769C;
+	border-radius:.5rem;
+	margin-bottom: 4rem;
+	border-radius: .5rem;
+	position: relative;
+	width:100%;
+	text-align:left;
+}
+
+.extension-bluetoothpairing-item-left{
+	margin-bottom: 2rem;
+}
+
+.extension-bluetoothpairing-item-setter{
+	color:white;
+	font-size: 1.8rem;
+	border-right: 1px solid rgba(255,255,255,.3);
+	width:100%;
+	padding:2rem;
+	overflow: hidden;
+}
+.extension-bluetoothpairing-item-right{
+	text-align:center;
+}
+
+.extension-bluetoothpairing-item-left .rule-switch{
+	padding-right:0;
+}
+
+
+.extension-bluetoothpairing-item-menu{
+	display: flex;
+	flex-direction:column;
+	justify-content:space-around;
+	padding:2rem;
+}
+
+
+#extension-bluetoothpairing-view .extension-bluetoothpairing-limit{
+	width: 8rem;
+	font-size: 1.8rem;
+	padding:.5rem 1rem;
+	margin: .5rem;
+	background-color: #4d8bb7;
+	color:white;
+	/*border-bottom:1px solid rgba(255,255,255,.3);*/
+	/*background:linear-gradient(to bottom, #5d9bc7 0%,#4d8bb7 100%);*/
+}
+
+
+#extension-bluetoothpairing-view .extension-bluetoothpairing-limit:focus{
+}
+
+
+.extension-bluetoothpairing-item-setter > span{
+	display:inline-block;
+}
+
+
+.extension-bluetoothpairing-list{
+	width:auto;
+	display:flex;
+	flex-wrap:wrap;
+    justify-content:center;
+    margin-bottom:4rem;
+}
+
+#extension-bluetoothpairing-list-discovered:not(:empty)::before{
+    content:'Discovered';
+    width:100%;
+    font-weight:bold;
+    text-align:center;
+    margin-bottom:2rem;
+}
+
+
+.extension-bluetoothpairing-list-title{
+    margin-top:4rem;
+    text-align:center;
+}
+
+
+
+
+#extension-bluetoothpairing-original-item{
+	opacity:.3;
+	display:none;
+	text-align:left;
+}
+
+
+#extension-bluetoothpairing-view select{
+	display: inline-block;
+	font-size: 1.8rem;
+	color:white;
+	line-height: 1.3;
+	padding:.5rem 1rem;
+	border-radius: 0.5rem;
+	box-sizing: border-box;
+	margin: .5rem;
+	border: none;
+	background-color: #4d8bb7;
+	/*border-bottom:1px solid rgba(255,255,255,.3);*/
+	
+	-moz-appearance: none;
+	-webkit-appearance: none;
+	appearance: none;
+	
+	background-image: url(/images/select-arrow.svg);
+	background-repeat: no-repeat;
+	background-size: 1.25rem;
+	background-position: calc(100% - 1rem);
+	padding-right: 3.5rem;
+	
+	/*
+	box-shadow: 0 1px 0 1px rgba(0,0,0,.04);
+	border-radius: .5em;
+	
+	
+	background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007CB2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E'),
+		linear-gradient(to bottom, #5d9bc7 0%,#4d8bb7 100%);
+	background-repeat: no-repeat, repeat;
+	background-position: right .7em top 50%, 0 0;
+	background-size: .65em auto, 100%;
+	*/
+	
+}
+
+#extension-bluetoothpairing-view select:focus{
+}
+
+
+#main-menu #extension-bluetoothpairing-menu-item {
+  background-image: url('../images/menu-icon.svg');
+}
+/*
+#extension-bluetoothpairing-title:hover{
+	background-image: url('../images/menu-icon-filled.svg');
+}
+*/
+
+
+#extension-bluetoothpairing-view {
+  height: 100%; /*calc(100% - 7.6rem);*/
+  box-sizing: border-box;
+  /*overflow: auto;*/
+	overflow: scroll;
+	position: absolute;
+	top: 7.6rem;
+	left: 0;
+	padding: 2rem;
+}
+
+
+#extension-bluetoothpairing-content {
+	display:flex;
+	flex-direction: column;
+	overflow: auto;
+  	position: relative;
+  	font-size: 1.6rem;
+  	color: #fff;
+	height:auto;
+    min-height:100%;
+}
+
+
+
+.extension-bluetoothpairing-item-name-is-mac{
+    opacity:.3;
+}
+
+.developer .extension-bluetoothpairing-item-name-is-mac{
+    opacity:.7;
+}
+
+
+.extension-bluetoothpairing-mac{
+	cursor:pointer;
+}
+.extension-bluetoothpairing-mac:hover{
+	font-weight:bold;
+}
+
+.extension-bluetoothpairing-item-info:not(:empty){
+	margin-top:2rem;
+	padding:2rem;
+	background-color:rgba(0,0,0,.2);
+}
+
+
+.extension-bluetoothpairing-item-info > span{
+	display:block;
+}
+
+
+.extension-bluetoothpairing-item-setter-part{
+	display:block;
+	padding:.5rem;
+}
+.extension-bluetoothpairing-item-setter-part-inter{
+	padding:1rem;
+}
+
+
+.extension-bluetoothpairing-response-data{
+	text-align:center;
+}
+
+
+/*  spinner  */
+
+/*  loading animation */
+
+.extension-bluetoothpairing-spinner {
+  display: block;
+  position: relative;
+  width: 80px;
+  height: 80px;
+  margin:0 auto;
+}
+.extension-bluetoothpairing-spinner div {
+  position: absolute;
+  top: 33px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.5);
+  animation-timing-function: cubic-bezier(0, 1, 1, 0);
+}
+.extension-bluetoothpairing-spinner div:nth-child(1) {
+  left: 8px;
+  animation: extension-bluetoothpairing-spinner1 0.6s infinite;
+}
+.extension-bluetoothpairing-spinner div:nth-child(2) {
+  left: 8px;
+  animation: extension-bluetoothpairing-spinner2 0.6s infinite;
+}
+.extension-bluetoothpairing-spinner div:nth-child(3) {
+  left: 32px;
+  animation: extension-bluetoothpairing-spinner2 0.6s infinite;
+}
+.extension-bluetoothpairing-spinner div:nth-child(4) {
+  left: 56px;
+  animation: extension-bluetoothpairing-spinner3 0.6s infinite;
+}
+@keyframes extension-bluetoothpairing-spinner1 {
+  0% {
+    transform: scale(0);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes extension-bluetoothpairing-spinner3 {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(0);
+  }
+}
+@keyframes extension-bluetoothpairing-spinner2 {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(24px, 0);
+  }
+}
+
+
+@media screen and (min-width: 1025px) {
+	#extension-bluetoothpairing-view{
+		left:9.6rem;
+		top: 0;
+		height:100vh; 
+		position:absolute;
+		width: calc(100% - 9.6rem);
+		padding-right:9.6rem;
+	}
+	
+	#extension-bluetoothpairing-content-container{
+		height:auto;
+		width: calc(100% - 3rem);
+	}
+	
+	.extension-bluetoothpairing-item{
+		width: calc(50% - 4rem);
+		margin-left: 2rem;
+		margin-right: 2rem;
+	}
+
+	
+}
+
+
+@media screen and (min-width: 1500px) {
+	.extension-bluetoothpairing-item-setter-part{
+		display:inline-block;
+	}
+}
+
