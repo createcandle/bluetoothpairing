@@ -26,20 +26,25 @@
   "name": "Bluetooth pairing",
   "options": {
     "default": {
+      "Disable periodic scanning": false,
       "Debugging": false
     },
     "schema": {
       "properties": {
-        "Debugging": {
-          "description": "Debugging allows you to diagnose any issues with the add-on. If enabled it will result in a lot more debug data in the internal log (which can be found under settings -> developer -> view internal logs).",
+        "Disable periodic scanning": {
+          "description": "Normally the addon will check if paired devices are (still) connected once every 5 minutes. Some other addons (Internet Radio, Voco) use this data). If this is somehow interfering, then you can disable it here.",
           "type": "boolean"
-        }			
+        },
+        "Debugging": {
+          "description": "Advanced. Debugging allows you to diagnose any issues with the add-on. If enabled it will result in a lot more debug data in the internal log (which can be found under settings -> developer -> view internal logs).",
+          "type": "boolean"
+        }				
       },
       "type": "object"
     }
   },
   "short_name": "Bluetooth",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "web_accessible_resources": [
     "css/*.css",
     "images/*.svg",

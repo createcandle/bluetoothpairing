@@ -37,16 +37,31 @@ class BluetoothpairingAPIHandler(APIHandler):
         self.scanning_start_time = 0
         self.scan_duration = 20
         self.made_agent = False
+        self.no_periodic_scanning = False
         
         self.all_devices = []
         self.paired_devices = []
         self.discovered_devices = []
         
-        self.persistent_data = {}
+        self.persistent_data = {'connected':[]}
         
         #self.addon_path = os.path.join(self.user_profile['addonsDir'], self.addon_name)
         #self.persistence_file_path = os.path.join(self.user_profile['dataDir'], self.addon_name, 'persistence.json')
         self.persistence_file_path = os.path.join('/home/pi/.webthings/data', self.addon_name, 'persistence.json')
+        
+        
+        # Get persistent data
+        try:
+            with open(self.persistence_file_path) as f:
+                self.persistent_data = json.load(f)
+                if self.DEBUG:
+                    print('self.persistent_data loaded from file: ' + str(self.persistent_data))
+        except:
+            print("Could not load persistent data (if you just installed the add-on then this is normal)")
+
+
+        
+        
         
         # LOAD CONFIG
         try:
@@ -144,6 +159,7 @@ class BluetoothpairingAPIHandler(APIHandler):
         if self.DEBUG:
             print("CLOCK INIT")
             
+        clock_loop_counter = 0
         while self.running:
             
             if self.do_scan:
@@ -151,6 +167,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                     print("clock: starting scan. Duration: " + str(self.scan_duration))
                 self.do_scan = False
                 self.scanning = True
+                clock_loop_counter = 0
                 
                 try:
                     
@@ -179,6 +196,14 @@ class BluetoothpairingAPIHandler(APIHandler):
             time.sleep(1)
 
 
+            if self.no_periodic_scanning == False:
+                clock_loop_counter += 1
+            
+                # Every 5 minutes check if connected devices are still connected, or if trusted paired devices have reconnected themselves
+                if clock_loop_counter > 30:
+                    clock_loop_counter = 0
+                    self.get_devices_list('paired-devices')
+                
 
 
 #
