@@ -37,7 +37,7 @@ class BluetoothpairingAPIHandler(APIHandler):
         self.scanning_start_time = 0
         self.scan_duration = 20
         self.made_agent = False
-        self.no_periodic_scanning = False
+        self.disable_periodic_scanning = False
         
         self.all_devices = []
         self.paired_devices = []
@@ -146,7 +146,14 @@ class BluetoothpairingAPIHandler(APIHandler):
             self.DEBUG = bool(config['Debugging'])
             if self.DEBUG:
                 print("-Debugging preference was in config: " + str(self.DEBUG))
+            
+        if 'Disable periodic scanning' in config:
+            self.disable_periodic_scanning = bool(config['Disable periodic scanning'])
+            if self.DEBUG:
+                print("-Disable periodic scanning preference was in config: " + str(self.disable_periodic_scanning))
 
+
+        
 
 
 #
@@ -196,11 +203,11 @@ class BluetoothpairingAPIHandler(APIHandler):
             time.sleep(1)
 
 
-            if self.no_periodic_scanning == False:
+            if self.disable_periodic_scanning == False:
                 clock_loop_counter += 1
             
                 # Every 5 minutes check if connected devices are still connected, or if trusted paired devices have reconnected themselves
-                if clock_loop_counter > 30:
+                if clock_loop_counter > 300:
                     clock_loop_counter = 0
                     self.get_devices_list('paired-devices')
                 
