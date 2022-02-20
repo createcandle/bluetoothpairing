@@ -5,6 +5,8 @@
             //console.log("Adding bluetoothpairing addon to menu");
             this.addMenuEntry('Bluetooth pairing');
 
+            this.debug = false;
+            
             this.content = '';
 
             this.item_elements = ['name', 'mac'];
@@ -12,7 +14,7 @@
             this.items_list = [];
 
             this.item_number = 0;
-
+            
 
             fetch(`/extensions/${this.id}/views/content.html`)
                 .then((res) => res.text())
@@ -67,13 +69,19 @@
                 `/extensions/${this.id}/api/scan`
 
             ).then((body) => {
-                //console.log("Python API /scan result:");
-                //console.log(body);
+
                 this.scanning = body.scanning;
                 this.scan_poll();
+                
+                this.debug = body.debug;
+                if(this.debug){
+                    console.log("Python API /scan result:");
+                    console.log(body);
+                    document.getElementById('extension-bluetoothpairing-warning').style.display = 'block';
+                }
 
             }).catch((e) => {
-                //console.log("bluetoothpairing: /scan error: ", e);
+                console.log("bluetoothpairing: /scan error: ", e);
                 list.innerText = "Unable to initiate scan - controller connection error?";
             })
             
@@ -96,8 +104,11 @@
                 {'get_paired':get_paired}
 
             ).then((body) => {
-                //console.log("Python API /poll result:");
-                //console.log(body);
+                if(this.debug){
+                    console.log("Python API /poll result:");
+                    console.log(body);
+                }
+
 
                 this.scanning = body.scanning;
             
@@ -136,10 +147,11 @@
         //
 
         regenerate_items(items,list_name) {
-
-            //console.log("regenerating list: " + list_name);
-            //console.log("items: ", items);
-
+            if(this.debug){
+                console.log("regenerating list: " + list_name);
+                console.log("items: ", items);
+            }
+            
             const original = document.getElementById('extension-bluetoothpairing-original-item');
             const list = document.getElementById('extension-bluetoothpairing-list-' + list_name);
 

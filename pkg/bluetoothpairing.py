@@ -42,6 +42,11 @@ class BluetoothpairingAPIHandler(APIHandler):
         self.paired_devices = []
         self.discovered_devices = []
         
+        self.persistent_data = {}
+        
+        #self.addon_path = os.path.join(self.user_profile['addonsDir'], self.addon_name)
+        #self.persistence_file_path = os.path.join(self.user_profile['dataDir'], self.addon_name, 'persistence.json')
+        self.persistence_file_path = os.path.join('/home/pi/.webthings/data', self.addon_name, 'persistence.json')
         
         # LOAD CONFIG
         try:
@@ -81,6 +86,9 @@ class BluetoothpairingAPIHandler(APIHandler):
                 print("Gateway version: " + str(self.gateway_version))
         except:
             print("self.gateway_version did not exist")
+
+        # Get initial list of connected devices, so update persistent data for other addons.
+        self.paired_devices = self.get_devices_list('paired-devices')
 
         # Start clock thread
         self.running = True
@@ -148,7 +156,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                     
                     time.sleep(2) # make sure other commands are complete
                     
-                    scan_output = self.bluetoothctl('--timeout 18 scan on')
+                    scan_output = self.bluetoothctl('--timeout 18 scan on>/dev/null')
                     if self.DEBUG:
                         print("scan output: \n" + str(scan_output))
 
@@ -180,6 +188,7 @@ class BluetoothpairingAPIHandler(APIHandler):
     def get_devices_list(self, devices_type):
         
         devices = []
+        connected_devices = []
         
         result = self.bluetoothctl(devices_type, True) # ask to be returned an array
         
@@ -208,24 +217,34 @@ class BluetoothpairingAPIHandler(APIHandler):
                         for line in info_test:
                             #if self.DEBUG:
                             #    print("- info test line: " + str(line))
+                            if 'Icon: audio-card' in line:
+                                 device['audio-card'] = True
+                                 if self.DEBUG:
+                                     print("device is speaker")
                             if 'Paired: yes' in line:
                                 device['paired'] = True
                                 if self.DEBUG:
                                     print("device is paired")
-                            if 'Connected: yes' in line:
-                                device['connected'] = True
-                                if self.DEBUG:
-                                    print("device is connected")
                             if 'Trusted: yes' in line:
                                 device['trusted'] = True
                                 if self.DEBUG:
                                     print("device is trusted")
-                                    
+                            if 'Connected: yes' in line:
+                                device['connected'] = True
+                                connected_devices.append(device)
+                                if self.DEBUG:
+                                    print("device is connected")
+                                
                     
                         devices.append(device)
                     
             except Exception as ex:
                 print("error parsing devices line: " + str(ex))
+                
+        if len(connected_devices) > 0 and devices_type == 'paired-devices':
+                self.persistent_data['paired'] = devices
+                self.persistent_data['connected'] = connected_devices
+                self.save_persistent_data()
                 
         return devices
 
@@ -274,7 +293,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                         return APIResponse(
                             status=200,
                             content_type='application/json',
-                            content=json.dumps({'state':state, 'scanning':self.scanning}),
+                            content=json.dumps({'state':state, 'scanning':self.scanning, 'debug':self.DEBUG}),
                         )
                             
                             
@@ -374,6 +393,9 @@ class BluetoothpairingAPIHandler(APIHandler):
                                         state = True
                                         if self.DEBUG:
                                             print("info test: it was connected")
+                                    
+                                if state:
+                                    self.paired_devices = self.get_devices_list('paired-devices') # udpates connected devices list in persistent json
                                     
                                 
                             elif action == 'trust':
@@ -477,7 +499,36 @@ class BluetoothpairingAPIHandler(APIHandler):
             print("bluetoothctl_command result: " + str(result))
         return result
         
-        
+
+
+    def save_persistent_data(self):
+        if self.DEBUG:
+            print("Saving to persistence data store")
+
+        try:
+            if not os.path.isfile(self.persistence_file_path):
+                open(self.persistence_file_path, 'a').close()
+                if self.DEBUG:
+                    print("Created an empty persistence file")
+            else:
+                if self.DEBUG:
+                    print("Persistence file existed. Will try to save to it.")
+
+            with open(self.persistence_file_path) as f:
+                if self.DEBUG:
+                    print("saving: " + str(self.persistent_data))
+                try:
+                    json.dump( self.persistent_data, open( self.persistence_file_path, 'w+' ) )
+                except Exception as ex:
+                    print("Error saving to persistence file: " + str(ex))
+                return True
+            #self.previous_persistent_data = self.persistent_data.copy()
+
+        except Exception as ex:
+            if self.DEBUG:
+                print("Error: could not store data in persistent store: " + str(ex) )
+            return False
+
         
 def run_command(cmd, timeout_seconds=30):
     try:
