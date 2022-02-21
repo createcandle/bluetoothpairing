@@ -45,7 +45,7 @@
 
 #extension-bluetoothpairing-scanning-container{
     display:none;
-    position:fixed;
+    position:absolute;
     top:0;
     left:0;
     height:100%;
@@ -489,6 +489,17 @@
   100% {
     transform: translate(24px, 0);
   }
+}
+
+
+
+#extension-bluetoothpairing-warning{
+    max-width:60rem;
+    margin:2rem auto;
+    padding:2rem;
+    background-color:red;
+    color:white;
+    border-radius:.5rem;
 }
 
 

@@ -43,7 +43,12 @@ class BluetoothpairingAPIHandler(APIHandler):
         self.paired_devices = []
         self.discovered_devices = []
         
-        self.persistent_data = {'connected':[]}
+        self.persistent_data = {'connected':[],'power':True,'audio_receiver':False}
+        
+        # Audio receiver
+        self.discoverable = False
+        self.discoverable_countdown = 0
+        
         
         #self.addon_path = os.path.join(self.user_profile['addonsDir'], self.addon_name)
         #self.persistence_file_path = os.path.join(self.user_profile['dataDir'], self.addon_name, 'persistence.json')
@@ -58,9 +63,15 @@ class BluetoothpairingAPIHandler(APIHandler):
                     print('self.persistent_data loaded from file: ' + str(self.persistent_data))
         except:
             print("Could not load persistent data (if you just installed the add-on then this is normal)")
+            #self.persistent_data = {'connected':[],'power':True,'audio_receiver':False}
 
+        print("persistent data: " + str(self.persistent_data))
 
+        if not 'power' in self.persistent_data:
+            self.persistent_data['power'] = True
         
+        if not 'audio_receiver' in self.persistent_data:
+            self.persistent_data['audio_receiver'] = False        
         
         
         # LOAD CONFIG
@@ -68,8 +79,7 @@ class BluetoothpairingAPIHandler(APIHandler):
             self.add_from_config()
         except Exception as ex:
             print("Error loading config: " + str(ex))
-        
-        self.DEBUG = True
+
 
             
         # Intiate extension addon API handler
@@ -102,8 +112,26 @@ class BluetoothpairingAPIHandler(APIHandler):
         except:
             print("self.gateway_version did not exist")
 
+
         # Get initial list of connected devices, so update persistent data for other addons.
         self.paired_devices = self.get_devices_list('paired-devices')
+
+
+
+        # Create adapter
+        try:
+            self.adapter = BluetoothpairingAdapter(self,verbose=False)
+            if self.DEBUG:
+                print("Bluetoothpairing ADAPTER created")
+
+        except Exception as ex:
+            print("Failed to start Bluetoothpairing ADAPTER. Error: " + str(ex))
+
+
+        # Restore states from persistent data
+        self.set_power(self.persistent_data['power'])
+        self.set_audio_receiver(self.persistent_data['audio_receiver'])
+
 
         # Start clock thread
         self.running = True
@@ -168,50 +196,58 @@ class BluetoothpairingAPIHandler(APIHandler):
             
         clock_loop_counter = 0
         while self.running:
-            
-            if self.do_scan:
-                if self.DEBUG:
-                    print("clock: starting scan. Duration: " + str(self.scan_duration))
-                self.do_scan = False
-                self.scanning = True
-                clock_loop_counter = 0
-                
-                try:
-                    
-                    time.sleep(2) # make sure other commands are complete
-                    
-                    scan_output = self.bluetoothctl('--timeout 18 scan on>/dev/null')
+            try:
+                if self.do_scan:
                     if self.DEBUG:
-                        print("scan output: \n" + str(scan_output))
-
-                
-                    self.paired_devices = self.get_devices_list('paired-devices')
-                    self.available_devices = self.get_devices_list('devices')
-                    
-                    if self.DEBUG:
-                        print("all available devices: " + str(self.available_devices))
-                    
-                    self.discovered_devices = [d for d in self.available_devices if d not in self.paired_devices]
-                    
-                except Exception as ex:
-                    print("clock: scan error: " + str(ex))
-                    
-                self.scanning = False
-                if self.DEBUG:
-                    print("clock: scan complete")
-                    
-            time.sleep(1)
-
-
-            if self.disable_periodic_scanning == False:
-                clock_loop_counter += 1
-            
-                # Every 5 minutes check if connected devices are still connected, or if trusted paired devices have reconnected themselves
-                if clock_loop_counter > 300:
+                        print("clock: starting scan. Duration: " + str(self.scan_duration))
+                    self.do_scan = False
+                    self.scanning = True
                     clock_loop_counter = 0
-                    self.get_devices_list('paired-devices')
                 
+                    try:
+                    
+                        time.sleep(2) # make sure other commands have finished
+                    
+                        scan_output = self.bluetoothctl('--timeout 18 scan on>/dev/null')
+                        if self.DEBUG:
+                            print("scan output: \n" + str(scan_output))
+                
+                        self.paired_devices = self.get_devices_list('paired-devices')
+                        self.available_devices = self.get_devices_list('devices')
+                    
+                        if self.DEBUG:
+                            print("all available devices: " + str(self.available_devices))
+                    
+                        self.discovered_devices = [d for d in self.available_devices if d not in self.paired_devices]
+                    
+                    except Exception as ex:
+                        print("clock: scan error: " + str(ex))
+                    
+                    self.scanning = False
+                    if self.DEBUG:
+                        print("clock: scan complete")
+                    
+            
 
+                # Discoverable countdown
+                if self.discoverable_countdown > 0:
+                    if self.discoverable_countdown == 1:
+                        self.set_discoverable(False)
+                    self.discoverable_countdown -= 1
+                    
+                # Periodic scanning
+                if self.disable_periodic_scanning == False:
+                    clock_loop_counter += 1
+            
+                    # Every 5 minutes check if connected devices are still connected, or if trusted paired devices have reconnected themselves
+                    if clock_loop_counter > 300:
+                        clock_loop_counter = 0
+                        self.get_devices_list('paired-devices')
+
+            except Exception as ex:
+                print("Bluetooth Pairing clock error: " + str(ex))
+
+            time.sleep(1)
 
 #
 #  GET DEVICES LIST
@@ -283,6 +319,62 @@ class BluetoothpairingAPIHandler(APIHandler):
 
 
 
+    #
+    #  SET STATES
+    #
+
+    def set_power(self,state):
+        if self.DEBUG:
+            print("Setting power to: " + str(state))
+            
+        if state == True:
+            self.bluetoothctl('power on')
+        else:
+            self.bluetoothctl('power off')
+        
+        self.adapter.set_power_on_thing(state)
+        
+        self.persistent_data['power'] = state
+        self.save_persistent_data()
+
+
+    def set_audio_receiver(self,state):
+        if self.DEBUG:
+            print("Setting audio receiver to: " + str(state))
+            
+        if state == True:
+            self.bluetoothctl('agent NoInputNoOutput')      # this should already be the default agent
+            self.bluetoothctl('default-agent')
+            self.bluetoothctl('pairable on')                # should already be pairable by default
+
+            self.set_discoverable(True)
+            run_command('sudo systemctl start bluealsa-aplay.service')
+            
+            
+        else:
+            self.set_discoverable(False)
+            run_command('sudo systemctl stop bluealsa-aplay.service')
+        
+        self.persistent_data['audio_receiver'] = state
+        self.save_persistent_data()
+        
+            
+    def set_discoverable(self,state):
+        if self.DEBUG:
+            print("Setting discoverable to: " + str(state))
+        
+        self.discoverable_countdown = 60                    # discoverable will also turn itself off automatically after 90 seconds. This is mostly to make the UI reflect that.
+        self.discoverable = state
+        
+        if state == True:
+            self.bluetoothctl('discoverable on')
+        else:
+            self.bluetoothctl('discoverable off')
+            
+        self.adapter.set_discoverable_on_thing(state)
+            
+
+
 
 
 #
@@ -313,7 +405,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                         
                         run_command('rfkill unblock bluetooth')
                         
-                        self.bluetoothctl('power on')
+                        self.set_power(True)
                         
                         self.paired_devices = self.get_devices_list('paired-devices')
                         
@@ -378,7 +470,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                             
                             if self.made_agent == False: 
                                 self.made_agent = True
-                                self.bluetoothctl('agent on') # TODO: how long does this stick?
+                                self.bluetoothctl('agent NoInputNoOutput') # TODO: how long does this stick? 300 seconds?
                                 self.bluetoothctl('default-agent')
                             
                             
@@ -560,6 +652,232 @@ class BluetoothpairingAPIHandler(APIHandler):
             if self.DEBUG:
                 print("Error: could not store data in persistent store: " + str(ex) )
             return False
+
+
+
+
+
+
+#
+#  ADAPTER
+#        
+
+class BluetoothpairingAdapter(Adapter):
+    """Adapter that can hold and manage things"""
+
+    def __init__(self, api_handler, verbose=False):
+        """
+        Initialize the object.
+
+        verbose -- whether or not to enable verbose logging
+        """
+
+        self.api_handler = api_handler
+        self.name = self.api_handler.addon_name #self.__class__.__name__
+        #print("adapter name = " + self.name)
+        self.adapter_name = self.api_handler.addon_name #'Bluetoothpairing-adapter'
+        Adapter.__init__(self, self.adapter_name, self.adapter_name, verbose=verbose)
+        self.DEBUG = self.api_handler.DEBUG
+        
+        try:
+            # Create the thing
+            bluetoothpairing_device = BluetoothpairingDevice(self,api_handler,"bluetoothpairing","Bluetooth","OnOffSwitch")
+            self.handle_device_added(bluetoothpairing_device)
+            self.devices['bluetoothpairing'].connected = True
+            self.devices['bluetoothpairing'].connected_notify(True)
+            self.thing = self.get_device("bluetoothpairing")
+            
+            print("adapter: self.ready?: " + str(self.ready))
+        
+        except Exception as ex:
+            print("Error during bluetooth pairing adapter init: " + str(ex))
+
+
+    def remove_thing(self, device_id):
+        if self.DEBUG:
+            print("Removing bluetoothpairing thing: " + str(device_id))
+        
+        try:
+            obj = self.get_device(device_id)
+            self.handle_device_removed(obj)                     # Remove from device dictionary
+
+        except Exception as ex:
+            print("Could not remove thing from Bluetoothpairing adapter devices: " + str(ex))
+            
+    
+    def set_discoverable_on_thing(self, state):
+        if self.DEBUG:
+            print("new discoverable state on thing: " + str(state))
+        try:
+            if self.thing:
+                self.thing.properties["bluetooth_discoverable"].update( state )
+            else:
+                print("Error: could not set discoverable state on thing, the thing did not exist?")
+        except Exception as ex:
+            print("Error setting discoverable state of thing: " + str(ex))    
+        
+    
+    def set_power_on_thing(self, state):
+        if self.DEBUG:
+            print("new power state on thing: " + str(state))
+        try:
+            if self.thing:
+                self.thing.properties["bluetooth_power"].update( state )
+            else:
+                print("Error: could not set power state on thing, the thing did not exist?")
+        except Exception as ex:
+            print("Error setting power state of thing: " + str(ex))           
+
+
+#
+#  DEVICE
+#
+
+class BluetoothpairingDevice(Device):
+    """Bluetoothpairing device type."""
+        
+    def __init__(self, adapter, api_handler, device_name, device_title, device_type):
+        """
+        Initialize the object.
+        adapter -- the Adapter managing this device
+        """
+
+        
+        Device.__init__(self, adapter, device_name)
+        #print("Creating Bluetoothpairing thing")
+        
+        self._id = device_name
+        self.id = device_name
+        self.adapter = adapter
+        self.api_handler = self.adapter.api_handler
+        self._type.append(device_type)
+        #self._type = ['OnOffSwitch']
+
+        self.name = device_name
+        self.title = device_title
+        self.description = 'Connect to Bluetooth devices'
+
+        #if self.adapter.DEBUG:
+        #print("Empty Bluetoothpairing thing has been created. device_name = " + str(self.name))
+        #print("new thing's adapter = " + str(self.adapter))
+
+        #print("self.api_handler.persistent_data['enabled'] = " + str(self.api_handler.persistent_data['enabled']))
+        
+        
+        self.properties["bluetooth_power"] = BluetoothpairingProperty(
+                            self,
+                            "bluetooth_power",
+                            {
+                                '@type': 'OnOffProperty',
+                                'title': "State",
+                                'type': 'boolean',
+                                'readOnly': False,
+                            },
+                            bool(self.adapter.api_handler.persistent_data['power']))
+
+
+        self.properties["bluetooth_audio_receiver"] = BluetoothpairingProperty(
+                            self,
+                            "bluetooth_audio_receiver",
+                            {
+                                'title': "Audio receiver",
+                                'type': 'boolean',
+                                'readOnly': False,
+                            },
+                            bool(self.adapter.api_handler.persistent_data['audio_receiver']))
+
+        
+        
+        self.properties["bluetooth_discoverable"] = BluetoothpairingProperty(
+                            self,
+                            "bluetooth_discoverable",
+                            {
+                                'title': "Discoverable",
+                                'type': 'boolean',
+                                'readOnly': True,
+                            },
+                            False)
+       
+        """
+        self.properties["bluetooth_audio_receiver"] = BluetoothpairingProperty(
+                        self,
+                        "bluetooth_audio_receiver",
+                        {
+                            'title': "Time span",
+                            'type': 'string',
+                            'enum': duration_strings_list  #["1 minute","10 minutes","30 minutes","1 hour","2 hours","4 hours","8 hours"]
+                        },
+                        duration_string)
+        """
+                            
+    
+
+#
+#  PROPERTY
+#
+
+
+class BluetoothpairingProperty(Property):
+    """Bluetoothpairing property type."""
+
+    def __init__(self, device, name, description, value):
+        Property.__init__(self, device, name, description)
+        
+        #print("new property with value: " + str(value))
+        self.device = device
+        self.name = name
+        self.title = name
+        self.description = description # dictionary
+        self.value = value
+        self.set_cached_value(value)
+        self.device.notify_property_changed(self)
+        if self.device.adapter.DEBUG:
+            print("bluetooth pairing property initiated: " + str(self.name) + ", with value: " + str(self.value))
+        #self.update(value)
+        #self.set_cached_value(value)
+        #self.device.notify_property_changed(self)
+        #print("property initialized")
+
+
+    def set_value(self, value):
+        if self.device.adapter.DEBUG:
+            print("set_value is called on a Bluetoothpairing property: " + str(self.name) + ", with new value: " + str(value))
+
+        try:
+            
+            if self.name == 'bluetooth_power':
+                self.device.adapter.api_handler.set_power(value)
+            
+            elif self.name == 'bluetooth_audio_receiver':
+                self.device.adapter.api_handler.set_audio_receiver(value)
+                
+
+            self.update(value)
+            
+            
+        except Exception as ex:
+            print("property:set value:error: " + str(ex))
+        
+
+    def update(self, value):
+        if self.device.adapter.DEBUG:
+            print("bluetoothpairing property -> update to: " + str(value))
+        #print("--prop details: " + str(self.title) + " - " + str(self.original_property_id))
+        #print("--pro device: " + str(self.device))
+        if value != self.value:
+            self.value = value
+            self.set_cached_value(value)
+            self.device.notify_property_changed(self)
+        
+
+
+
+
+
+
+
+
+
 
         
 def run_command(cmd, timeout_seconds=30):
