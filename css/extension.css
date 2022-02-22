@@ -186,9 +186,11 @@
 	animation:extension-bluetoothpairing-fade 2s linear infinite;
 }
 
+/*
 .extension-bluetoothpairing-item-pairing-failed .extension-bluetoothpairing-item-pair-button-icon{
 	fill:red;
 }
+*/
 
 /*
 @keyframes extension-bluetoothpairing-spin { 100% { -webkit-transform: rotate(360deg); transform:rotate(360deg); } }

@@ -211,7 +211,9 @@ class BluetoothpairingAPIHandler(APIHandler):
                         scan_output = self.bluetoothctl('--timeout 18 scan on>/dev/null')
                         if self.DEBUG:
                             print("scan output: \n" + str(scan_output))
-                
+                        
+                        time.sleep(1)
+                        
                         self.paired_devices = self.get_devices_list('paired-devices')
                         self.available_devices = self.get_devices_list('devices')
                     
@@ -220,6 +222,8 @@ class BluetoothpairingAPIHandler(APIHandler):
                     
                         self.discovered_devices = [d for d in self.available_devices if d not in self.paired_devices]
                     
+                        time.sleep(1)
+                        
                     except Exception as ex:
                         print("clock: scan error: " + str(ex))
                     
@@ -363,11 +367,11 @@ class BluetoothpairingAPIHandler(APIHandler):
         if self.DEBUG:
             print("Setting discoverable to: " + str(state))
         
-        self.discoverable_countdown = 60                    # discoverable will also turn itself off automatically after 90 seconds. This is mostly to make the UI reflect that.
         self.discoverable = state
         
         if state == True:
             self.bluetoothctl('discoverable on')
+            self.discoverable_countdown = 60                    # discoverable will also turn itself off automatically after 90 seconds. This is mostly to make the UI reflect that.
         else:
             self.bluetoothctl('discoverable off')
             
@@ -442,7 +446,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                         if scan_progress > self.scan_duration:
                             scan_progress = self.scan_duration
                     
-                        scan_progress = int(scan_progress * 5)
+                        scan_progress = int(scan_progress * 4)
                         if self.DEBUG:
                             print("scan_progress: " + str(scan_progress) + "%")
                         
@@ -501,6 +505,9 @@ class BluetoothpairingAPIHandler(APIHandler):
                                 result = self.bluetoothctl('pair ' + mac)
                                 if 'Pairing successful' in result:
                                     state = True
+                                    
+                                    time.sleep(3)
+                                    
                                     self.paired_devices = self.get_devices_list('paired-devices')
                                 
                             
@@ -539,7 +546,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                                 if 'Device has been removed' in result:
                                     state = True
                                     
-                                time.sleep(2)
+                                time.sleep(3)
                                 
                                 info_test = self.bluetoothctl('info ' + mac)
                                 for line in info_test:
@@ -552,11 +559,12 @@ class BluetoothpairingAPIHandler(APIHandler):
                                     self.paired_devices = self.get_devices_list('paired-devices')
                             
                             
-                            if update == '' and state:
-                                update = action + ' succesful'
+                            
                             
                             if action != 'info':
-                                time.sleep(3) # Give bluetooth some time to settle before the user fires another command
+                                if update == '' and state:
+                                    update = action + ' succesful'
+                                time.sleep(2) # Give bluetooth some time to settle before the user fires another command
                             
                             return APIResponse(
                                 status=200,

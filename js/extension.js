@@ -127,6 +127,8 @@
                     }
                     else{
                         //console.log("poll: controller is NOT scanning");
+                        document.getElementById('extension-bluetoothpairing-list-paired').innerHTML = "";
+                        document.getElementById('extension-bluetoothpairing-list-discovered').innerHTML = "";
                         this.regenerate_items(body['paired'], 'paired');
                         this.regenerate_items(body['discovered'], 'discovered');
                         document.getElementById('extension-bluetoothpairing-content').classList.remove('extension-bluetoothpairing-scanning');
@@ -177,7 +179,7 @@
 
                 // Loop over all items
                 for (var item in items) {
-					//console.log(items[item]);
+					console.log(items[item]);
                     var clone = original.cloneNode(true);
                     clone.removeAttribute('id');
 
@@ -214,7 +216,9 @@
                             //console.log(event);
                             
                             var target = event.currentTarget;
-                            var main_item = target.parentElement.parentElement.parentElement; //parent of "target"
+                            var main_item = this.getClosest(event.currentTarget,'.extension-bluetoothpairing-item');
+                            //var main_item = target.parentElement.parentElement.parentElement; //parent of "target"
+                            
                             //console.log(main_item);
                             main_item.classList.add("extension-bluetoothpairing-item-pairing");
     						
@@ -232,11 +236,14 @@
                                 if (body['state'] != 'ok') {
                                     if( body['state'] == true ){
                                         //console.log("unpair succeeded");
-    									this.scan_poll(true); // will redraw the lists
+                                        window.setTimeout(() => {
+                                            this.scan_poll(true); // will redraw the lists
+                                        },3000);
+    									
                                     }
-                                    else{
+                                    //else{
                                         //info_panel.innerHTML = "Unpairing failed";
-                                    }
+                                    //}
                                 }
     							main_item.classList.remove("extension-bluetoothpairing-item-pairing");
 							
@@ -268,7 +275,8 @@
                             //console.log(event);
                             
                             var target = event.currentTarget;
-                            var main_item = target.parentElement.parentElement.parentElement; //parent of "target"
+                            //var main_item = target.parentElement.parentElement.parentElement; //parent of "target"
+                            var main_item = this.getClosest(event.currentTarget,'.extension-bluetoothpairing-item');
                             //console.log(main_item);
                             main_item.classList.add("extension-bluetoothpairing-item-pairing");
     						//const info_panel = main_item.querySelectorAll('.extension-bluetoothpairing-item-info')[0];
@@ -373,10 +381,11 @@
 					
                     // Add checkbox click event
                     const checkbox = clone.querySelectorAll('.switch-checkbox')[0];
+                    
                     checkbox.addEventListener('change', (event) => {
                         
                         var target = event.currentTarget;
-                        var main_item = target.parentElement.parentElement.parentElement; //parent of "target"
+                        var main_item = target.parentElement.parentElement.parentElement.parentElement.parentElement; //parent of "target"
                         //console.log(main_item);
                         //console.log("this?: ", this);
                         //console.log('event: ', event);
@@ -417,7 +426,6 @@
                                 
                             }).catch((e) => {
                                 console.log("bluetoothpairing: server connection error while pairing: ",e);
-                                //pre.innerText = e.toString();
                                 
                             });
 
@@ -496,8 +504,6 @@
 
                             }).catch((e) => {
                                 console.log("bluetoothpairing: server connection error while connecting: ", e);
-                                //pre.innerText = e.toString();
-                                
                             });
                         }
                     });
@@ -515,10 +521,12 @@
 
                     // Set enabled state of regenerated item
                     
+                    clone.querySelectorAll('.extension-bluetoothpairing-enabled')[0].checked = items[item]['connected'];
+                    
 					if (items[item]['connected'] == true) {
-                        //console.log("items seems to be connected.");
+                        console.log("items seems to be connected.");
                         //clone.querySelectorAll('.extension-bluetoothpairing-enabled')[0].removeAttribute('checked');
-                        clone.querySelectorAll('.extension-bluetoothpairing-enabled')[0].checked = items[item]['connected'];
+                        
                         clone.classList.add('extension-bluetoothpairing-item-connected');
                     }
 					
@@ -540,6 +548,13 @@
         }
 
 
+
+        getClosest(elem, selector) {
+        	for ( ; elem && elem !== document; elem = elem.parentNode ) {
+        		if ( elem.matches( selector ) ) return elem;
+        	}
+        	return null;
+        };
 
 
 		hide(){
