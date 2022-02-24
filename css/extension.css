@@ -212,12 +212,23 @@
 	max-width:50rem;
 }
 
+.extension-bluetoothpairing-manufacturer{
+    display:block;
+}
+
 
 
 .extension-bluetoothpairing-name-is-mac{
+    display:none;
     opacity:.3;
 }
 
+.developer .extension-bluetoothpairing-name-is-mac{
+    display:block;
+}
+
+
+/*  ITEM  */
 
 .extension-bluetoothpairing-item{
 	/*border-bottom:1px solid white;*/
@@ -232,8 +243,14 @@
 	text-align:left;
 }
 
+
+.extension-bluetoothpairing-item-main{
+    display:flex;
+}
+
 .extension-bluetoothpairing-item-left{
-	margin-bottom: 2rem;
+	display:flex;
+    flex-direction:column;
 }
 
 .extension-bluetoothpairing-item-setter{
@@ -292,6 +309,14 @@
 
 #extension-bluetoothpairing-list-discovered:not(:empty)::before{
     content:'Discovered';
+    width:100%;
+    font-weight:bold;
+    text-align:center;
+    margin-bottom:2rem;
+}
+
+#extension-bluetoothpairing-list-trackers:not(:empty)::before{
+    content:'Trackers';
     width:100%;
     font-weight:bold;
     text-align:center;
@@ -413,6 +438,14 @@
 }
 
 
+.extension-bluetoothpairing-item-info{
+    display:none;
+}
+
+.developer .extension-bluetoothpairing-item-info{
+    display:block;
+}
+
 .extension-bluetoothpairing-item-info > span{
 	display:block;
 }
@@ -430,6 +463,26 @@
 .extension-bluetoothpairing-response-data{
 	text-align:center;
 }
+
+/*  tracker item  */
+
+#extension-bluetoothpairing-list-trackers .extension-bluetoothpairing-item-info{
+    word-break: break-all;
+}
+
+#extension-bluetoothpairing-list-trackers .extension-bluetoothpairing-item-menu{
+    display:none;
+}
+
+#extension-bluetoothpairing-list-trackers .extension-bluetoothpairing-item-setter{
+    border-right:none;
+}
+
+.extension-bluetoothpairing-item-icon-container img{
+    width:6rem;
+    margin-right:2rem;
+}
+
 
 
 /*  spinner  */

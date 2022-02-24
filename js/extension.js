@@ -109,7 +109,6 @@
                     console.log(body);
                 }
 
-
                 this.scanning = body.scanning;
             
                 if(typeof body.scanning != 'undefined'){
@@ -128,8 +127,10 @@
                     else{
                         //console.log("poll: controller is NOT scanning");
                         document.getElementById('extension-bluetoothpairing-list-paired').innerHTML = "";
+                        document.getElementById('extension-bluetoothpairing-list-trackers').innerHTML = "";
                         document.getElementById('extension-bluetoothpairing-list-discovered').innerHTML = "";
                         this.regenerate_items(body['paired'], 'paired');
+                        this.regenerate_items(body['trackers'], 'trackers');
                         this.regenerate_items(body['discovered'], 'discovered');
                         document.getElementById('extension-bluetoothpairing-content').classList.remove('extension-bluetoothpairing-scanning');
                     }
@@ -143,6 +144,10 @@
             
         }
         
+
+
+
+
 
         //
         //  REGENERATE ITEMS
@@ -191,19 +196,41 @@
                     clone.removeAttribute('id');
                     clone.setAttribute('id', safe_mac);
 
-					//console.log("paired: " + items[item]['paired']);
+
+
+                    // Add icon
+                    if(list_name == 'trackers'){
+                        if(items[item]['name'] == 'Airtag'){
+                            console.log('adding icon');
+                            clone.querySelector('.extension-bluetoothpairing-item-icon-container').innerHTML = '<img src="/extensions/bluetoothpairing/images/airtag-icon.svg" alt="Airtag icon"/>';
+                            
+                        }
+                        
+                        
+                    }
+
+                    // Add manufacturer
+                    if(typeof items[item]['manufacturer'] != 'undefined'){   
+                        clone.querySelector('.extension-bluetoothpairing-manufacturer').innerText = items[item]['manufacturer'];
+                    }
+
+
+					// Add class to reflect paired state
 					if( items[item]['paired'] == true ){
 						//console.log("ENABLED");
 						clone.classList.add("extension-bluetoothpairing-item-paired");
 					}
 					
 
-                    // Change switch icon
+                    // Change switch icon to reflect connected state
                     clone.querySelectorAll('.switch-checkbox')[0].id =    list_name + 'toggle-' + this.item_number;
                     clone.querySelectorAll('.switch-slider')[0].htmlFor = list_name + 'toggle-' + this.item_number;
                     this.item_number++;
 
-                    //const info_panel = main_item.querySelectorAll('.extension-bluetoothpairing-item-info')[0];
+
+					const info_panel = clone.querySelector('.extension-bluetoothpairing-item-info');
+					info_panel.innerHTML = items[item]['info'];
+
                     
                     // Pair button click event
                     const pair_button = clone.querySelectorAll('.extension-bluetoothpairing-item-pair-button')[0];
@@ -338,9 +365,11 @@
                         //console.log(event);
                         var target = event.currentTarget;
                         var main_item = target.parentElement.parentElement.parentElement; //parent of "target"
+                        const info_panel = main_item.querySelector('.extension-bluetoothpairing-item-info');
+                        info_panel.style.display = 'block';
                         //console.log(main_item);
                         //main_item.classList.add("info");
-
+                        /*
                         // Communicate with backend
                         window.API.postJson(
                             `/extensions/${this.id}/api/update`, {
@@ -360,7 +389,7 @@
                             }
                             
                             
-							const info_panel = main_item.querySelectorAll('.extension-bluetoothpairing-item-info')[0];
+							const info_panel = main_item.querySelector('.extension-bluetoothpairing-item-info');
 							info_panel.innerHTML = "";
 							if( Array.isArray(body['update'])){
     							for (var i = 0; i < body['update'].length; i++) {
@@ -377,6 +406,7 @@
                             //pre.innerText = e.toString();
                             
                         });
+                        */
                     });
 					
                     // Add checkbox click event
@@ -385,7 +415,8 @@
                     checkbox.addEventListener('change', (event) => {
                         
                         var target = event.currentTarget;
-                        var main_item = target.parentElement.parentElement.parentElement.parentElement.parentElement; //parent of "target"
+                        var main_item = this.getClosest(target,'.extension-bluetoothpairing-item');
+                        //var main_item = target.parentElement.parentElement.parentElement.parentElement; //parent of "target"
                         //console.log(main_item);
                         //console.log("this?: ", this);
                         //console.log('event: ', event);
