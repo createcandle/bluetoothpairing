@@ -251,6 +251,7 @@
 .extension-bluetoothpairing-item-left{
 	display:flex;
     flex-direction:column;
+    margin-bottom:4rem;
 }
 
 .extension-bluetoothpairing-item-setter{
@@ -391,10 +392,9 @@
 
 
 #extension-bluetoothpairing-view {
-  height: 100%; /*calc(100% - 7.6rem);*/
-  box-sizing: border-box;
-  /*overflow: auto;*/
-	overflow: scroll;
+    height: 100%; /*calc(100% - 7.6rem);*/
+    box-sizing: border-box;
+	overflow: auto;
 	position: absolute;
 	top: 7.6rem;
 	left: 0;
@@ -416,11 +416,12 @@
 
 
 .extension-bluetoothpairing-item-name-is-mac{
-    opacity:.3;
+    display:none;
+    opacity:.5;
 }
 
 .developer .extension-bluetoothpairing-item-name-is-mac{
-    opacity:.7;
+    display:block;
 }
 
 
