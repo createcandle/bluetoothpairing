@@ -421,7 +421,7 @@
 }
 
 .developer .extension-bluetoothpairing-item-name-is-mac{
-    display:block;
+    display:flex;
 }
 
 

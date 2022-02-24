@@ -59,10 +59,18 @@ class BluetoothpairingAPIHandler(APIHandler):
         #self.addon_path = os.path.join(self.user_profile['addonsDir'], self.addon_name)
         #self.persistence_file_path = os.path.join(self.user_profile['dataDir'], self.addon_name, 'persistence.json')
         self.addon_path = os.path.join('/home/pi/.webthings/addons', self.addon_name)
-        self.persistence_file_path = os.path.join('/home/pi/.webthings/data', self.addon_name, 'persistence.json')
+        self.data_dir = os.path.join('/home/pi/.webthings/data', self.addon_name)
+        self.persistence_file_path = os.path.join(self.data_dir, 'persistence.json')
         
-        self.tracker_scanner_path = os.path.join(self.addon_path, 'tracker_scanner.py')
+        self.tracker_scanner_origin_lib_dir = os.path.join(self.addon_path, 'lib')
+        self.tracker_scanner_destination_lib_dir = os.path.join(self.data_dir, 'lib')
+        self.tracker_scanner_origin_path = os.path.join(self.addon_path, 'tracker_scanner.py')
+        self.tracker_scanner_path = os.path.join(self.data_dir, 'tracker_scanner.py')
+        
         self.manufacturers_csv_file_path = os.path.join(self.addon_path, 'bluetooth_manufacturers.csv')
+        
+        os.system('sudo cp -r ' + str(self.tracker_scanner_origin_lib_dir) + ' ' + str(self.tracker_scanner_destination_lib_dir))
+        os.system('sudo cp ' + str(self.tracker_scanner_origin_path) + ' ' + str(self.tracker_scanner_path))
         
         
         # Generate manufacturers lookup table
