@@ -67,9 +67,8 @@ class BluetoothpairingAPIHandler(APIHandler):
         self.periodic_scanning_duration = 2
         self.periodic_scanning_interval = 5
         self.scan_duration = 2 # in reality, with all the sleep cooldowns, it takes longer than the value of this variable
-        self.tracker_scan_duration = 10 # currently only used for progress bar calculation
         self.made_agent = False
-        self.disable_periodic_device_scanning = False
+        
         
         self.all_devices = []
         self.paired_devices = []
@@ -78,9 +77,8 @@ class BluetoothpairingAPIHandler(APIHandler):
         self.scan_result = []
         
         # Tracker scanning
-        self.trackers = []
+        self.trackers = [] # contains a list of trackers that are unlikely to change mac address. Tiles don't change. Airtags change every 15 minutes.
         self.do_periodic_tracker_scan = False
-        self.last_time_new_tracker_detected = 0
         self.recent_new_tracker = None
         
         
@@ -153,6 +151,19 @@ class BluetoothpairingAPIHandler(APIHandler):
         if not 'recent_trackers' in self.persistent_data:
             self.persistent_data['recent_trackers'] = {}
         
+        if not 'previous_tracker_count' in self.persistent_data:
+            self.persistent_data['previous_tracker_count'] = 0
+
+        if not 'previous_airtag_count' in self.persistent_data:
+            self.persistent_data['previous_airtag_count'] = 0
+        
+        if not 'previous_previous_airtag_count' in self.persistent_data:
+            self.persistent_data['previous_previous_airtag_count'] = 0
+        
+        if not 'last_time_new_tracker_detected' in self.persistent_data:
+            self.persistent_data['last_time_new_tracker_detected'] = 0
+
+        
         
         # LOAD CONFIG
         try:
@@ -170,7 +181,7 @@ class BluetoothpairingAPIHandler(APIHandler):
 
 
         # Get initial list of connected devices, to update persistent data for other addons.
-        #self.paired_devices = self.get_devices_list('paired-devices')
+        #self.paired_devices = self.create_devices_list('paired-devices')
 
 
 
@@ -290,7 +301,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                             try:
                                 self.scan_result = json.loads(scan_output)
                             
-                                self.parse_scan_result(self.scan_result)
+                                self.create_devices_list()
                             except Exception as ex:
                                 print("error calling/parsing scanner: " + str(ex))
                             
@@ -299,8 +310,8 @@ class BluetoothpairingAPIHandler(APIHandler):
                             
                             #time.sleep(1)
                         
-                            #self.paired_devices = self.get_devices_list('paired-devices')
-                            #self.available_devices = self.get_devices_list('devices')
+                            #self.paired_devices = self.create_devices_list('paired-devices')
+                            #self.available_devices = self.create_devices_list('devices')
                     
                             #if self.DEBUG:
                             #    print("all available devices: " + str(self.available_devices))
@@ -347,14 +358,18 @@ class BluetoothpairingAPIHandler(APIHandler):
                     if clock_loop_counter % 3 == 0:
                         current_time = time.time()
                         recent_new_tracker_detected = False
+                        
+                        if time.time() - self.persistent_data['last_time_new_tracker_detected'] < 300:
+                            recent_new_tracker_detected = True
+                        
                         for tracker_mac in self.persistent_data['recent_trackers']:
-                            first_time_spotted = self.persistent_data['recent_trackers'][tracker_mac]
-                            if current_time - first_time_spotted < 600:
-                                recent_new_tracker_detected = False
+                            #first_time_spotted = self.persistent_data['recent_trackers'][tracker_mac]
+                            #if current_time - first_time_spotted < 600:
+                            #    recent_new_tracker_detected = False
                             
                             # trackers that were spotted over a year ago may be forgotten? I believe Airtags change their mac every 6 weeks. High-traffic areas could be swamped with data.
                             if len(self.persistent_data['recent_trackers']) > 200:
-                                if current_time - first_time_spotted > 31557600:
+                                if current_time - first_time_spotted > 11557600: # about three months
                                     del self.persistent_data['recent_trackers'][tracker_mac]
                         
                         if recent_new_tracker_detected != self.recent_new_tracker:
@@ -370,15 +385,20 @@ class BluetoothpairingAPIHandler(APIHandler):
         
         
         
-    def parse_scan_result(self, scan_result=[]):
+    def create_devices_list(self):
         if self.DEBUG:
-            print("in parse_scan_result")
+            print("in create_devices_list")
+        
         
         try:
             devices = []
             connected_devices = []
             paired_devices = []
             trackers = []
+            airtag_count = 0
+            
+            
+            # Part 1, using the information from BluetoothCTL to gat an initial list of paired and connected devices.
             
             result = self.bluetoothctl('paired-devices', True) # ask to be returned an array
         
@@ -471,10 +491,16 @@ class BluetoothpairingAPIHandler(APIHandler):
             
             
             
-            for device in scan_result:
+            # Part 2: parsing the actual scan results
             
-                if device['manufacturer'] in self.manufacturers_lookup_table:
-                    device['manufacturer'] = self.manufacturers_lookup_table[device['manufacturer']]
+            if time.time() - self.scanning_start_time  > 300:
+                self.scan_result = [] # clear the scan results if they're too old.
+            
+            
+            for device in self.scan_result:
+                if 'manufacturer' in device:
+                    if device['manufacturer'] in self.manufacturers_lookup_table:
+                        device['manufacturer'] = self.manufacturers_lookup_table[device['manufacturer']]
                 
                 #if device['connected'] == True:
                 #    self.connected_devices.append(device)
@@ -483,19 +509,39 @@ class BluetoothpairingAPIHandler(APIHandler):
                 #    self.paired_devices.append(device)
                 
                 if device['type'] == 'tracker':
-                    self.trackers.append(device)
-                    if device['address'] not in self.persistent_data['recent_trackers']:
-                        self.persistent_data['recent_trackers'][ device['address'] ] = int(time.time())
-                        self.save_persistent_data()
+                    trackers.append(device)
+                    if device['name'] == 'Airtag':
+                        airtag_count += 1
+                    else:
+                        if device['address'] not in self.persistent_data['recent_trackers']:
+                            self.persistent_data['recent_trackers'][ device['address'] ] = int(time.time())
+                            self.save_persistent_data()
+                            self.persistent_data['last_time_new_tracker_detected'] = time.time()
 
                 devices.append(device)
 
-            if self.DEBUG:
-                print("\n\nTOTAL TRACKERS DETECTED: " + str(len(self.trackers)))
-            self.adapter.set_trackers_on_thing(len(self.trackers))
+
             
-            print("\n\n----------------------------------------devices: " + str(devices))
-            self.scan_result = devices
+            # If periodic scanning is active, indicate when the tracker count increases
+            if self.periodic_scanning_interval > 0:
+                if len(trackers) != self.persistent_data['previous_tracker_count']:
+                    self.adapter.set_trackers_on_thing(len(trackers))
+                    if self.DEBUG:
+                        print("number of detected trackers changed to: " + str(len(trackers)))
+                self.persistent_data['previous_tracker_count'] = len(trackers)
+                
+                if airtag_count != self.persistent_data['previous_airtag_count']:
+                    if airtag_count > self.persistent_data['previous_airtag_count'] and airtag_count > self.persistent_data['previous_previous_airtag_count']: # compare with previous two scans, to avoid flutter
+                        self.persistent_data['last_time_new_tracker_detected'] = time.time()
+                    self.persistent_data['previous_previous_airtag_count'] = self.persistent_data['previous_airtag_count']
+                    self.persistent_data['previous_airtag_count'] = airtag_count
+                    
+                
+            
+            if self.DEBUG:
+                print("\n\n----------------------------------------devices: " + str(devices))
+
+            self.all_devices = devices
             
             self.save_persistent_data()
             
@@ -555,7 +601,7 @@ class BluetoothpairingAPIHandler(APIHandler):
         
         if state == True:
             self.bluetoothctl('discoverable on')
-            self.discoverable_countdown = 60                    # discoverable will also turn itself off automatically after 90 seconds. This is mostly to make the UI reflect that.
+            self.discoverable_countdown = 60 # discoverable will also turn itself off automatically after 90 seconds. This is mostly to make the UI reflect that.
         else:
             self.bluetoothctl('discoverable off')
             
@@ -595,7 +641,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                         
                         self.set_power(True)
                         
-                        #self.paired_devices = self.get_devices_list('paired-devices')
+                        #self.paired_devices = self.create_devices_list('paired-devices')
                         
                         self.scan_duration = 18
                         
@@ -618,12 +664,13 @@ class BluetoothpairingAPIHandler(APIHandler):
                         if self.scanning == False:
                             try:
                                 get_paired = bool(request.body['get_paired']) # used to refresh the paired devices list
-                                print("get_paired: " + str(get_paired))
+                                if self.DEBUG:
+                                    print("get_paired: " + str(get_paired))
                                 if request.path == '/init' or get_paired == True:
                                     if self.DEBUG:
                                         print("-updating list of paired devices")
-                                    #self.paired_devices = self.get_devices_list('paired-devices')
-                                    self.parse_scan_result(self.scan_result)
+                                    #self.paired_devices = self.create_devices_list('paired-devices')
+                                    self.create_devices_list()
                                     
                             except Exception as ex:
                                 print("Error with get_paired in poll request: " + str(ex))
@@ -642,7 +689,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                         return APIResponse(
                             status=200,
                             content_type='application/json',
-                            content=json.dumps({'state':'ok', 'scanning':self.scanning, 'scan_progress':scan_progress, 'scan_result':self.scan_result, 'paired':self.paired_devices, 'discovered':self.discovered_devices, 'trackers':self.trackers }),
+                            content=json.dumps({'state':'ok', 'scanning':self.scanning, 'scan_progress':scan_progress, 'all_devices':self.all_devices}),
                         )
                             
                             
@@ -697,7 +744,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                                     
                                     time.sleep(3)
                                     
-                                    self.paired_devices = self.get_devices_list('paired-devices')
+                                    self.paired_devices = self.create_devices_list()
                                 
                             
                             elif action == 'connect':
@@ -715,7 +762,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                                             print("info test: it was connected")
                                     
                                 if state:
-                                    self.paired_devices = self.get_devices_list('paired-devices') # udpates connected devices list in persistent json
+                                    self.paired_devices = self.create_devices_list() # udpates connected devices list in persistent json
                                     
                                 
                             elif action == 'trust':
@@ -745,7 +792,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                                             print("it was still paired")
                                 
                                 if state:
-                                    self.paired_devices = self.get_devices_list('paired-devices')
+                                    self.create_devices_list()
                             
                             
                             

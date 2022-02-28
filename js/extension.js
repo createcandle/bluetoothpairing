@@ -129,7 +129,7 @@
                         //document.getElementById('extension-bluetoothpairing-list-paired').innerHTML = "";
                         //document.getElementById('extension-bluetoothpairing-list-trackers').innerHTML = "";
                         //document.getElementById('extension-bluetoothpairing-list-discovered').innerHTML = "";
-                        this.regenerate_items(body['scan_result']);
+                        this.regenerate_items(body['all_devices']);
                         document.getElementById('extension-bluetoothpairing-content').classList.remove('extension-bluetoothpairing-scanning');
                     }
                 }
@@ -156,7 +156,6 @@
                 console.log("regenerating list. Items: ");
                 console.log(items);
             }
-            console.log(items);
             const original = document.getElementById('extension-bluetoothpairing-original-item');
             const paired_list = document.getElementById('extension-bluetoothpairing-list-paired');
             const discovered_list = document.getElementById('extension-bluetoothpairing-list-discovered');
