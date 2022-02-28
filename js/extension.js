@@ -9,7 +9,7 @@
             
             this.content = '';
 
-            this.item_elements = ['name', 'mac'];
+            this.item_elements = ['name', 'address'];
             this.all_things;
             this.items_list = [];
 
@@ -63,7 +63,7 @@
         
         scan_start() {
             //console.log("calling for scan start");
-            document.getElementById('extension-bluetoothpairing-list-discovered').innerHTML = "";
+            //document.getElementById('extension-bluetoothpairing-list-discovered').innerHTML = "";
             const list = document.getElementById('extension-bluetoothpairing-list-paired');
             window.API.postJson(
                 `/extensions/${this.id}/api/scan`
@@ -95,7 +95,7 @@
 			const list = document.getElementById('extension-bluetoothpairing-list-paired');
 
             if(list == null){
-                //console.log('Error: list output div did not exist yet?');
+                console.log('Error: list output div did not exist yet?');
                 return
             }
 
@@ -126,12 +126,10 @@
                     }
                     else{
                         //console.log("poll: controller is NOT scanning");
-                        document.getElementById('extension-bluetoothpairing-list-paired').innerHTML = "";
-                        document.getElementById('extension-bluetoothpairing-list-trackers').innerHTML = "";
-                        document.getElementById('extension-bluetoothpairing-list-discovered').innerHTML = "";
-                        this.regenerate_items(body['paired'], 'paired');
-                        this.regenerate_items(body['trackers'], 'trackers');
-                        this.regenerate_items(body['discovered'], 'discovered');
+                        //document.getElementById('extension-bluetoothpairing-list-paired').innerHTML = "";
+                        //document.getElementById('extension-bluetoothpairing-list-trackers').innerHTML = "";
+                        //document.getElementById('extension-bluetoothpairing-list-discovered').innerHTML = "";
+                        this.regenerate_items(body['scan_result']);
                         document.getElementById('extension-bluetoothpairing-content').classList.remove('extension-bluetoothpairing-scanning');
                     }
                 }
@@ -153,37 +151,51 @@
         //  REGENERATE ITEMS
         //
 
-        regenerate_items(items,list_name) {
+        regenerate_items(items) {
             if(this.debug){
-                console.log("regenerating list: " + list_name);
-                console.log("items: ", items);
+                console.log("regenerating list. Items: ");
+                console.log(items);
             }
-            
+            console.log(items);
             const original = document.getElementById('extension-bluetoothpairing-original-item');
-            const list = document.getElementById('extension-bluetoothpairing-list-' + list_name);
+            const paired_list = document.getElementById('extension-bluetoothpairing-list-paired');
+            const discovered_list = document.getElementById('extension-bluetoothpairing-list-discovered');
+            const tracker_list = document.getElementById('extension-bluetoothpairing-list-trackers');
 
-            //console.log('items.length: ', items.length);
-            if(items.length == 0){
-                
-                if(list_name == 'paired'){
-                    list.innerHTML = "There are no paired devices";
-                }
-                else{
-                    list.innerHTML = "";
-                }
+            if(paired_list == null){
+                console.log('no HTML to generate into (yet)');
                 return;
             }
-
-            this.item_number = 0;
+            paired_list.innerHTML = "";
+            discovered_list.innerHTML = "";
+            tracker_list.innerHTML = "";
+            //console.log('items.length: ', items.length);
+            
+            var paired_counter = 0;
+            this.item_number = 0; // used to generated unique toggle IDs
 
             try {
                 
                 items.sort((a, b) => (a.name.toLowerCase() > b.name.toLowerCase()) ? 1 : -1) // sort alphabetically
-
-                list.innerHTML = "";
+                
+                
 
                 // Loop over all items
                 for (var item in items) {
+                    
+                    var list_name = 'discovered';
+                    var list = document.getElementById('extension-bluetoothpairing-list-discovered');
+                    
+					if( items[item]['paired'] == true ){
+                        list_name = 'paired';
+                        paired_counter++;
+                        list = document.getElementById('extension-bluetoothpairing-list-paired');
+					}
+                    else if( items[item]['type'] == 'tracker' ){
+                        list_name = 'trackers';
+                        list = document.getElementById('extension-bluetoothpairing-list-trackers');
+					}
+                    
 					console.log(items[item]);
                     var clone = original.cloneNode(true);
                     clone.removeAttribute('id');
@@ -191,7 +203,7 @@
                     //console.log(items[item]['mac']);
                     
                     const nice_name = items[item]['name'];
-					const mac = items[item]['mac'];
+					const mac = items[item]['address'];
                     const safe_mac = mac.replace(/:/g, "-");
                     clone.removeAttribute('id');
                     clone.setAttribute('id', safe_mac);
@@ -199,13 +211,9 @@
 
 
                     // Add icon
-                    if(list_name == 'trackers'){
-                        if(items[item]['name'] == 'Airtag'){
-                            console.log('adding icon');
-                            clone.querySelector('.extension-bluetoothpairing-item-icon-container').innerHTML = '<img src="/extensions/bluetoothpairing/images/airtag-icon.svg" alt="Airtag icon"/>';
-                            
-                        }
-                        
+                    if(items[item]['name'] == 'Airtag'){
+                        console.log('adding icon');
+                        clone.querySelector('.extension-bluetoothpairing-item-icon-container').innerHTML = '<img src="/extensions/bluetoothpairing/images/airtag-icon.svg" alt="Airtag icon"/>';
                         
                     }
 
@@ -229,7 +237,10 @@
 
 
 					const info_panel = clone.querySelector('.extension-bluetoothpairing-item-info');
-					info_panel.innerHTML = items[item]['info'];
+					if(typeof items[item]['binary'] != 'undefined'){
+					    info_panel.innerHTML = items[item]['binary'];
+					}
+                    
 
                     
                     // Pair button click event
@@ -358,7 +369,7 @@
 
 
                     // Info button click event
-                    const info_button = clone.querySelectorAll('.extension-bluetoothpairing-mac')[0];
+                    const info_button = clone.querySelectorAll('.extension-bluetoothpairing-address')[0];
                     info_button.addEventListener('click', (event) => {
                         
                         //console.log("secret info button clicked");
@@ -538,19 +549,31 @@
                             });
                         }
                     });
-					
+					if(typeof items[item]['name'] != 'undefined'){
+					    clone.querySelector('.extension-bluetoothpairing-name').innerText = items[item]['name']
+					}
+                    else{
+                        clone.querySelector('.extension-bluetoothpairing-name').innerText = items[item]['address']
+                    }
+                    
+                    clone.querySelector('.extension-bluetoothpairing-address').innerText = items[item]['address']
+                    
+                    
                     // Update to the actual values of regenerated item
+                    /*
                     for (var key in this.item_elements) { // name and mac
+                        console.log('key: ', key);
                         try {
                             if (this.item_elements[key] != 'enabled') {
                                 clone.querySelectorAll('.extension-bluetoothpairing-' + this.item_elements[key])[0].innerText = items[item][this.item_elements[key]];
                             }
                         } catch (e) {
-                            console.log("bluetoothpairing: could not regenerate actual values: " + e);
+                            console.log("bluetoothpairing: could not regenerate actual values: ", e);
                         }
                     }
+                    */
 
-                    // Set enabled state of regenerated item
+                    // Set connected state of regenerated item
                     
                     clone.querySelectorAll('.extension-bluetoothpairing-enabled')[0].checked = items[item]['connected'];
                     
@@ -561,8 +584,9 @@
                         clone.classList.add('extension-bluetoothpairing-item-connected');
                     }
 					
+                    console.log(items[item]['address'].replace(':','-').replace(':','-').replace(':','-').replace(':','-').replace(':','-'));
 					if(document.getElementById(safe_mac) == null){
-                        if( safe_mac == items[item]['name'] ){
+                        if( items[item]['name'] == items[item]['address'].replace(':','-').replace(':','-').replace(':','-').replace(':','-').replace(':','-') ){
                             clone.classList.add('extension-bluetoothpairing-item-name-is-mac');
                         	list.append(clone);
                         }
@@ -572,9 +596,13 @@
 					}
                     
                 }
+                
+                if(paired_counter == 0){
+                    paired_list.innerHTML = "There are no paired devices";
+                }
 
             } catch (e) {
-                console.log("bluetoothpairing: error regenerating: " + e);
+                console.log("bluetoothpairing: error regenerating: ", e);
             }
         }
 

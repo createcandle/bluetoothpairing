@@ -467,7 +467,7 @@
 
 /*  tracker item  */
 
-#extension-bluetoothpairing-list-trackers .extension-bluetoothpairing-item-info{
+.extension-bluetoothpairing-item-info{
     word-break: break-all;
 }
 

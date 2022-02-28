@@ -1,7 +1,6 @@
 """Bluetoothpairing API handler."""
 
 
-
 import os
 import sys
 import csv
@@ -30,60 +29,103 @@ class BluetoothpairingAPIHandler(APIHandler):
         
         self.DEBUG = False
         
-        self.addon_name = 'bluetoothpairing'
+        self.addon_name = 'bluetoothpairing' # overwritteb by data in manifest
+        
+        
+        # Intiate extension addon API handler
+        try:
+            manifest_fname = os.path.join(
+                os.path.dirname(__file__),
+                '..',
+                'manifest.json'
+            )
+
+            with open(manifest_fname, 'rt') as f:
+                manifest = json.load(f)
+
+            APIHandler.__init__(self, manifest['id'])
+            self.manager_proxy.add_api_handler(self)
+            self.addon_name = manifest['id']
+
+            if self.DEBUG:
+                print("self.manager_proxy = " + str(self.manager_proxy))
+                print("Created new API HANDLER: " + str(manifest['id']))
+        
+        except Exception as e:
+            print("Failed to init UX extension API handler: " + str(e))
+        
+        
+        
         self.running = True
-        self.do_scan = False
+        self.persistent_data = {'connected':[],'power':True,'audio_receiver':False}
+        
+        
+        # Device scanning
+        self.do_device_scan = True
         self.scanning = False
-        #self.cancel_scan = False
         self.scanning_start_time = 0
-        self.scan_duration = 18 # in reality, with all the cooldowns, it takes closer to 25 seconds.
+        self.scan_duration = 2 # in reality, with all the cooldowns, it takes closer to 25 seconds.
         self.tracker_scan_duration = 10 # currently only used for progress bar calcualtion
         self.made_agent = False
-        self.disable_periodic_scanning = False
+        self.disable_periodic_device_scanning = False
         
         self.all_devices = []
         self.paired_devices = []
         self.discovered_devices = []
         
+        self.scan_result = []
+        
+        # Tracker scanning
         self.trackers = []
+        self.do_periodic_tracker_scan = False
         self.last_time_new_tracker_detected = 0
         self.recent_new_tracker = None
+        self.disable_periodic_tracker_scanning = False
         
-        self.persistent_data = {'connected':[],'power':True,'audio_receiver':False}
         
         # Audio receiver
         self.discoverable = False
         self.discoverable_countdown = 0
         
         
-        #self.addon_path = os.path.join(self.user_profile['addonsDir'], self.addon_name)
-        #self.persistence_file_path = os.path.join(self.user_profile['dataDir'], self.addon_name, 'persistence.json')
-        self.addon_path = os.path.join('/home/pi/.webthings/addons', self.addon_name)
-        self.data_dir = os.path.join('/home/pi/.webthings/data', self.addon_name)
+        # Paths
+        #print(" self.user_profile: " + str( self.user_profile))
+        self.addon_dir = os.path.join(self.user_profile['addonsDir'], self.addon_name)
+        self.data_dir = os.path.join(self.user_profile['dataDir'], self.addon_name)
+        
         self.persistence_file_path = os.path.join(self.data_dir, 'persistence.json')
         
-        self.tracker_scanner_origin_lib_dir = os.path.join(self.addon_path, 'lib')
-        self.tracker_scanner_destination_lib_dir = os.path.join(self.data_dir, 'lib')
-        self.tracker_scanner_origin_path = os.path.join(self.addon_path, 'tracker_scanner.py')
-        self.tracker_scanner_path = os.path.join(self.data_dir, 'tracker_scanner.py')
+        self.scanner_origin_lib_dir = os.path.join(self.addon_dir, 'lib')
+        self.scanner_destination_lib_dir = os.path.join(self.data_dir, 'lib')
+        self.scanner_origin_path = os.path.join(self.addon_dir, 'scanner.py')
+        self.scanner_path = os.path.join(self.data_dir, 'scanner.py')
         
-        self.manufacturers_csv_file_path = os.path.join(self.addon_path, 'bluetooth_manufacturers.csv')
+        self.manufacturers_csv_file_path = os.path.join(self.addon_dir, 'bluetooth_manufacturers.csv')
         
-        os.system('sudo cp -r ' + str(self.tracker_scanner_origin_lib_dir) + ' ' + str(self.tracker_scanner_destination_lib_dir))
-        os.system('sudo cp ' + str(self.tracker_scanner_origin_path) + ' ' + str(self.tracker_scanner_path))
+        # Move tracker to data dir so it doesn't interfere with addon updating
+        os.system('sudo rm ' + str(self.scanner_path))
+        os.system('sudo rm -rf ' + str(self.scanner_destination_lib_dir))
+        os.system('sudo cp -r ' + str(self.scanner_origin_lib_dir) + ' ' + str(self.scanner_destination_lib_dir))
+        os.system('sudo cp ' + str(self.scanner_origin_path) + ' ' + str(self.scanner_path))
         
         
-        # Generate manufacturers lookup table
+        # Generate manufacturers lookup tables
         self.manufacturers_lookup_table = {}
+        self.manufacturers_code_lookup_table = {}
         try:
             
             with open(self.manufacturers_csv_file_path, newline='') as csvfile:
                 manus = csv.reader(csvfile, delimiter=',', quotechar='"')
                 for row in manus:
+                    if row[0] == 'Decimal':
+                        continue
+                    manu_number = int(row[0])
                     manu_code = row[1].replace("0x","")
-                    self.manufacturers_lookup_table[manu_code] = row[2]
+                    
+                    self.manufacturers_lookup_table[manu_number] = row[2]
+                    self.manufacturers_code_lookup_table[manu_code] = row[2]
             
-            print(str(self.manufacturers_lookup_table))
+            #print(str(self.manufacturers_lookup_table))
         except Exception as ex:
             print("error parsing manufacturers csv: " + str(ex))
         
@@ -98,7 +140,8 @@ class BluetoothpairingAPIHandler(APIHandler):
             print("Could not load persistent data (if you just installed the add-on then this is normal)")
             #self.persistent_data = {'connected':[],'power':True,'audio_receiver':False}
 
-        print("persistent data: " + str(self.persistent_data))
+        if self.DEBUG:
+            print("persistent data: " + str(self.persistent_data))
 
         if not 'power' in self.persistent_data:
             self.persistent_data['power'] = True
@@ -109,35 +152,12 @@ class BluetoothpairingAPIHandler(APIHandler):
         if not 'recent_trackers' in self.persistent_data:
             self.persistent_data['recent_trackers'] = {}
         
+        
         # LOAD CONFIG
         try:
             self.add_from_config()
         except Exception as ex:
             print("Error loading config: " + str(ex))
-
-
-            
-        # Intiate extension addon API handler
-        try:
-            manifest_fname = os.path.join(
-                os.path.dirname(__file__),
-                '..',
-                'manifest.json'
-            )
-
-            with open(manifest_fname, 'rt') as f:
-                manifest = json.load(f)
-
-            APIHandler.__init__(self, manifest['id'])
-            self.manager_proxy.add_api_handler(self)
-            
-
-            if self.DEBUG:
-                print("self.manager_proxy = " + str(self.manager_proxy))
-                print("Created new API HANDLER: " + str(manifest['id']))
-        
-        except Exception as e:
-            print("Failed to init UX extension API handler: " + str(e))
 
 
         # Respond to gateway version
@@ -148,8 +168,8 @@ class BluetoothpairingAPIHandler(APIHandler):
             print("self.gateway_version did not exist")
 
 
-        # Get initial list of connected devices, so update persistent data for other addons.
-        self.paired_devices = self.get_devices_list('paired-devices')
+        # Get initial list of connected devices, to update persistent data for other addons.
+        #self.paired_devices = self.get_devices_list('paired-devices')
 
 
 
@@ -168,15 +188,12 @@ class BluetoothpairingAPIHandler(APIHandler):
         self.set_audio_receiver(self.persistent_data['audio_receiver'])
 
 
-        # reconnect to previously connected devices.
+        # Reconnect to previously connected devices.
         for previously_connected_device in self.persistent_data['connected']:
             if self.DEBUG:
                 print(" reconnecting to: " + str(previously_connected_device))
             self.bluetoothctl('connect ' + str(previously_connected_device['mac']) )
             time.sleep(3)
-
-
-
         
 
         # Start clock thread
@@ -184,18 +201,17 @@ class BluetoothpairingAPIHandler(APIHandler):
         
         if self.DEBUG:
             print("Starting the internal clock")
-        try:            
-           t = threading.Thread(target=self.clock)
-           t.daemon = True
-           t.start()
+        try:
+            pass         
+            t = threading.Thread(target=self.clock)
+            t.daemon = True
+            t.start()
                 
         except Exception as ex:
             print("Error starting the clock thread: " + str(ex))
         
         self.ready = True
         
-        
-
 
 
     # Read the settings from the add-on settings page
@@ -204,7 +220,7 @@ class BluetoothpairingAPIHandler(APIHandler):
         try:
             database = Database(self.addon_name)
             if not database.open():
-                print("Could not open settings database")
+                print("Error, could not open settings database")
                 return
             
             config = database.load_config()
@@ -223,10 +239,15 @@ class BluetoothpairingAPIHandler(APIHandler):
             if self.DEBUG:
                 print("-Debugging preference was in config: " + str(self.DEBUG))
             
-        if 'Disable periodic scanning' in config:
-            self.disable_periodic_scanning = bool(config['Disable periodic scanning'])
+        if 'Disable periodic device scanning' in config:
+            self.disable_periodic_device_scanning = bool(config['Disable periodic device scanning'])
             if self.DEBUG:
-                print("-Disable periodic scanning preference was in config: " + str(self.disable_periodic_scanning))
+                print("-Disable periodic device scanning preference was in config: " + str(self.disable_periodic_device_scanning))
+        
+        if 'Disable periodic tracker scanning' in config:
+            self.disable_periodic_tracker_scanning = bool(config['Disable periodic tracker scanning'])
+            if self.DEBUG:
+                print("-Disable periodic tracker scanning preference was in config: " + str(self.disable_periodic_tracker_scanning))
 
 
         
@@ -245,10 +266,13 @@ class BluetoothpairingAPIHandler(APIHandler):
         clock_loop_counter = 0
         while self.running:
             try:
-                if self.do_scan:
+                if self.do_device_scan:
                     if self.DEBUG:
                         print("clock: starting scan. Duration: " + str(self.scan_duration))
-                    self.do_scan = False
+                        
+                    
+                        
+                    self.do_device_scan = False
                     self.scanning = True
                     self.scanning_start_time = time.time()
                     clock_loop_counter = 0
@@ -258,37 +282,49 @@ class BluetoothpairingAPIHandler(APIHandler):
                         time.sleep(2) # make sure other commands have finished
                     
                         if self.running:
-                            scan_output = self.bluetoothctl('--timeout ' + str(self.scan_duration) + ' scan on>/dev/null')
+                            #scan_output = self.bluetoothctl('--timeout ' + str(self.scan_duration) + ' scan on>/dev/null')
+                            scan_output = run_command("sudo python3 " + str(self.scanner_path) + ' ' + str(self.scan_duration))
                             if self.DEBUG:
                                 print("scan output: \n" + str(scan_output))
-                        
-                        
-                        if self.running:
+                            try:
+                                self.scan_result = json.loads(scan_output)
                             
-                            time.sleep(1)
+                                self.parse_scan_result(self.scan_result)
+                            except Exception as ex:
+                                print("error calling/parsing scanner: " + str(ex))
+                            
                         
-                            self.paired_devices = self.get_devices_list('paired-devices')
-                            self.available_devices = self.get_devices_list('devices')
-                    
-                            if self.DEBUG:
-                                print("all available devices: " + str(self.available_devices))
-                    
-                            self.discovered_devices = [d for d in self.available_devices if d not in self.paired_devices]
-                    
-                            time.sleep(1)
+                        #if self.running:
+                            
+                            #time.sleep(1)
                         
-                        if self.running:
-                            self.tracker_scan()
+                            #self.paired_devices = self.get_devices_list('paired-devices')
+                            #self.available_devices = self.get_devices_list('devices')
+                    
+                            #if self.DEBUG:
+                            #    print("all available devices: " + str(self.available_devices))
+                    
+                            #self.discovered_devices = [d for d in self.available_devices if d not in self.paired_devices]
+                    
+                            #time.sleep(1)
+                        
+                        #if self.running:
+                        #    if self.scan_duration > 2:
+                        #        self.tracker_scan()
+                        
+                        
+                        
                         
                     except Exception as ex:
                         print("clock: scan error: " + str(ex))
                     
+                    
+                    self.scan_duration = 2 # reset scan duration to two seconds
                     self.scanning = False
                     if self.DEBUG:
                         print("clock: scan complete")
                     
-            
-
+                
                 # Discoverable countdown
                 if self.discoverable_countdown > 0:
                     if self.discoverable_countdown == 1:
@@ -296,18 +332,19 @@ class BluetoothpairingAPIHandler(APIHandler):
                     self.discoverable_countdown -= 1
                     
                     
-                # Periodic scanning
-                if self.disable_periodic_scanning == False:
-                    clock_loop_counter += 1
-            
-                    # Every 5 minutes check if connected devices are still connected, or if trusted paired devices have reconnected themselves
-                    if clock_loop_counter > 300:
-                        clock_loop_counter = 0
-                        self.scan_duration = 2
-                        self.do_scan = True
-                        
+                # Periodic scanning timer
+                clock_loop_counter += 1
+        
                 
-                # Was a new tracker found recently?
+                if clock_loop_counter > 300:
+                    clock_loop_counter = 0
+                    
+                    # Every 5 minutes check if connected devices are still connected, or if trusted paired devices have reconnected themselves
+                    if self.disable_periodic_device_scanning == False:
+                        self.do_device_scan = True
+                
+                
+                # Updating tracker detected state on thing
                 if clock_loop_counter % 3 == 0:
                     current_time = time.time()
                     recent_new_tracker_detected = False
@@ -315,11 +352,15 @@ class BluetoothpairingAPIHandler(APIHandler):
                         first_time_spotted = self.persistent_data['recent_trackers'][tracker_mac]
                         if current_time - first_time_spotted < 600:
                             recent_new_tracker_detected = False
+                            
+                        # trackers that were spotted over a year ago may be forgotten? I believe Airtags change their mac every 6 weeks.
+                        if len(self.persistent_data['recent_trackers']) > 200:
+                            if current_time - first_time_spotted > 31557600:
+                                del self.persistent_data['recent_trackers'][tracker_mac]
                         
                     if recent_new_tracker_detected != self.recent_new_tracker:
                         self.recent_new_tracker = recent_new_tracker_detected
                         self.adapter.set_recent_tracker_on_thing(recent_new_tracker_detected)
-
                         
 
             except Exception as ex:
@@ -327,150 +368,135 @@ class BluetoothpairingAPIHandler(APIHandler):
 
             time.sleep(1)
 
-#
-#  GET DEVICES LIST
-#
-
-    def get_devices_list(self, devices_type):
         
-        devices = []
-        connected_devices = []
         
-        result = self.bluetoothctl(devices_type, True) # ask to be returned an array
         
-        for line in result:
-            try:
-                if 'Device' in line:
-                    line2 = line.split('Device ')[1]
-                    if self.DEBUG:
-                        print("line2: " + str(line2))
-                
-                    device = {}
-                
-                    parts = line2.split(" ", 1)
-                    if self.DEBUG:
-                        print("LINE PARTS: " + str(parts))
-                    
-                    if valid_mac(parts[0]):
-                        device['mac'] = parts[0]
-                        device['name'] = parts[1]
-                        
-                        device['paired'] = False
-                        device['trusted'] = False
-                        device['connected'] = False
-                        
-                        info_test = self.bluetoothctl('info ' + device['mac'])
-                        
-                        device['info'] = info_test
-                        
-                        for line in info_test:
-                            
-                            #if self.DEBUG:
-                            #    print("- info test line: " + str(line))
-                            if 'Icon: audio-card' in line:
-                                 device['audio-card'] = True
-                                 if self.DEBUG:
-                                     print("device is speaker")
-                            if 'Paired: yes' in line:
-                                device['paired'] = True
-                                if self.DEBUG:
-                                    print("device is paired")
-                            if 'Trusted: yes' in line:
-                                device['trusted'] = True
-                                if self.DEBUG:
-                                    print("device is trusted")
-                            if 'Connected: yes' in line:
-                                device['connected'] = True
-                                connected_devices.append(device)
-                                if self.DEBUG:
-                                    print("device is connected")
-                            if 'ManufacturerData Key:' in line:
-                                line = line.replace('\n','')
-                                manu_code = str(line[-4:])
-                                if manu_code != None:
-                                    manu_code = manu_code.upper()
-                                    if self.DEBUG:
-                                        print("manu code: -" + str(manu_code) + "-")
-                                    if manu_code in self.manufacturers_lookup_table:
-                                        device['manufacturer'] = self.manufacturers_lookup_table[manu_code]
-                                    else:
-                                        if self.DEBUG:
-                                            print("manufacturer code not found in lookup table")
-                                
-                    
-                        devices.append(device)
-                    
-            except Exception as ex:
-                print("error parsing devices line: " + str(ex))
-                
-        if len(connected_devices) > 0 and devices_type == 'paired-devices':
-                self.persistent_data['paired'] = devices
-                self.persistent_data['connected'] = connected_devices
-                self.save_persistent_data()
-                
-        return devices
-
-
-
-
-#
-#  BLUETOOTH TRACKERS SCANNER
-#
-
-    def tracker_scan(self):
-        result = run_command("sudo python3 " + self.tracker_scanner_path)
+    def parse_scan_result(self, scan_result=[]):
         if self.DEBUG:
-            print("tracker scan result: " + str(result))
-        if result != None and result != '':
-            result = result.strip()
-            self.trackers = []
-            if "\n" in result:
-                result = result.split("\n")
-            else:
-                result = [result]
-                
-            if self.DEBUG:
-                print("tracker scan result has been turned into an array")
-            for line in result:
-                if len(line) > 10:
-                    try:
-                        #line = line.replace('\n','')
-                    
-                        device = {}
-                        parts = line.split(" ")
-                    
-                        device['name'] = parts[0]
-                        if parts[0] == 'Airtag':
-                            device['manufacturer'] = "Apple, Inc."
-                        device['mac'] = parts[1]
-                        device['rssi'] = parts[2]
-                        
-                            
-                        if device['mac'] not in self.persistent_data['recent_trackers']:
-                            self.persistent_data['recent_trackers'][ device['mac'] ] = int(time.time())
-                            self.save_persistent_data()
-                            
-                        try:    
-                            device['info'] = parts[2] + " " + parts[3] + " " + parts[4]
-                        except:
-                             if self.DEBUG:
-                                 print("ERROR in parsing tracker info from line")
-                             
-                        self.trackers.append(device)
-                    
-                    except Exception as ex:
-                        if self.DEBUG:
-                            print("Error while parsing line from tracker_scanner: " + str(ex))
-                else:
-                    if self.DEBUG:
-                        print("short line in tracker scanner results?")
+            print("in parse_scan_result")
+        
+        try:
+            devices = []
+            connected_devices = []
+            paired_devices = []
+            trackers = []
             
+            result = self.bluetoothctl('paired-devices', True) # ask to be returned an array
+        
+            for line in result:
+                try:
+                    if 'Device' in line:
+                        line2 = line.split('Device ')[1]
+                        if self.DEBUG:
+                            print("line2: " + str(line2))
+                
+                        device = {}
+                
+                        parts = line2.split(" ", 1)
+                        if self.DEBUG:
+                            print("LINE PARTS: " + str(parts))
+                    
+                        if valid_mac(parts[0]):
+                            device['address'] = parts[0]
+                            device['name'] = parts[1]
+                        
+                            device['paired'] = False
+                            device['trusted'] = False
+                            device['connected'] = False
+                        
+                            info_test = self.bluetoothctl('info ' + device['address'])
+                        
+                            device['info'] = info_test
+                        
+                            for line in info_test:
+                            
+                                #if self.DEBUG:
+                                #    print("- info test line: " + str(line))
+                                if 'Icon: audio-card' in line:
+                                     device['type'] = 'audio-card'
+                                     if self.DEBUG:
+                                         print("device is speaker")
+                                if 'Paired: yes' in line:
+                                    device['paired'] = True
+                                    
+                                    if self.DEBUG:
+                                        print("device is paired")
+                                if 'Trusted: yes' in line:
+                                    device['trusted'] = True
+                                    if self.DEBUG:
+                                        print("device is trusted")
+                                if 'Connected: yes' in line:
+                                    device['connected'] = True
+                                    
+                                    if self.DEBUG:
+                                        print("device is connected")
+                                if 'ManufacturerData Key:' in line:
+                                    line = line.replace('\n','')
+                                    manu_code = str(line[-4:])
+                                    if manu_code != None:
+                                        manu_code = manu_code.upper()
+                                        if self.DEBUG:
+                                            print("manu code: -" + str(manu_code) + "-")
+                                        if manu_code in self.manufacturers_code_lookup_table:
+                                            device['manufacturer'] = self.manufacturers_code_lookup_table[manu_code]
+                                        else:
+                                            if self.DEBUG:
+                                                print("manufacturer code not found in lookup table")
+                                
+                            
+                            
+                            
+                            if device['paired']:
+                                paired_devices.append(device)
+                                
+                            if device['connected']:
+                                connected_devices.append(device)
+                            
+                            devices.append(device)    
+            
+            
+                except Exception as ex:
+                    print("Error parsing bluetoothCTL scan result" + str(ex))
+            
+            self.connected_devices = connected_devices
+            self.paired_devices = paired_devices
+            
+            
+            
+            for device in scan_result:
+            
+                if device['manufacturer'] in self.manufacturers_lookup_table:
+                    device['manufacturer'] = self.manufacturers_lookup_table[device['manufacturer']]
+                
+                #if device['connected'] == True:
+                #    self.connected_devices.append(device)
+                
+                #if device['paired'] == True:
+                #    self.paired_devices.append(device)
+                
+                if device['type'] == 'tracker':
+                    self.trackers.append(device)
+                    if device['address'] not in self.persistent_data['recent_trackers']:
+                        self.persistent_data['recent_trackers'][ device['address'] ] = int(time.time())
+                        self.save_persistent_data()
+
+                devices.append(device)
+
             if self.DEBUG:
                 print("\n\nTOTAL TRACKERS DETECTED: " + str(len(self.trackers)))
             self.adapter.set_trackers_on_thing(len(self.trackers))
-        else:
-            if self.DEBUG:
-                print("No trackers detected")
+            
+            print("\n\n----------------------------------------devices: " + str(devices))
+            self.scan_result = devices
+            
+            self.save_persistent_data()
+            
+        except Exception as ex:
+            print('Error while parsing scan result: ' + str(ex))
+                
+        
+
+
 
 
     #
@@ -557,17 +583,20 @@ class BluetoothpairingAPIHandler(APIHandler):
                             print("/scan - initiating scan")
                         state = 'ok'
                         
+                        
+                        
                         run_command('rfkill unblock bluetooth')
                         
                         self.set_power(True)
                         
-                        self.paired_devices = self.get_devices_list('paired-devices')
+                        #self.paired_devices = self.get_devices_list('paired-devices')
                         
                         self.scan_duration = 18
                         
                         if self.scanning == False:
+                            self.scanning_start_time = time.time()
                             self.scanning = True
-                            self.do_scan = True
+                            self.do_device_scan = True
                             
                         return APIResponse(
                             status=200,
@@ -583,12 +612,14 @@ class BluetoothpairingAPIHandler(APIHandler):
                         # optionallt refresh list of paired devices
                         if self.scanning == False:
                             try:
-                                get_paired = bool(request.body['get_paired'])
-                                #print("get_paired: " + str(get_paired))
+                                get_paired = bool(request.body['get_paired']) # used to refresh the paired devices list
+                                print("get_paired: " + str(get_paired))
                                 if request.path == '/init' or get_paired == True:
                                     if self.DEBUG:
                                         print("-updating list of paired devices")
-                                    self.paired_devices = self.get_devices_list('paired-devices')
+                                    #self.paired_devices = self.get_devices_list('paired-devices')
+                                    self.parse_scan_result()
+                                    
                             except Exception as ex:
                                 print("Error with get_paired in poll request: " + str(ex))
                         
@@ -606,7 +637,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                         return APIResponse(
                             status=200,
                             content_type='application/json',
-                            content=json.dumps({'state':'ok', 'scanning':self.scanning, 'scan_progress':scan_progress, 'paired':self.paired_devices, 'discovered':self.discovered_devices, 'trackers':self.trackers }),
+                            content=json.dumps({'state':'ok', 'scanning':self.scanning, 'scan_progress':scan_progress, 'scan_result':self.scan_result, 'paired':self.paired_devices, 'discovered':self.discovered_devices, 'trackers':self.trackers }),
                         )
                             
                             
@@ -761,7 +792,6 @@ class BluetoothpairingAPIHandler(APIHandler):
         if self.DEBUG:
             print("Shutting down Bluetooth Pairing")
         self.running = False
-        time.sleep(2)
         
         
     # Run BluetoothCTL commands
@@ -1091,7 +1121,7 @@ class BluetoothpairingProperty(Property):
 
 
         
-def run_command(cmd, timeout_seconds=20):
+def run_command(cmd, timeout_seconds=30):
     try:
         p = subprocess.run(cmd, timeout=timeout_seconds, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, universal_newlines=True)
 
