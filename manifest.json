@@ -10,7 +10,7 @@
       ]
     }
   ],
-  "description": "Pair with and connect to bluetooth devices",
+  "description": "Detect, pair with and connect to bluetooth devices.",
   "gateway_specific_settings": {
     "webthings": {
       "exec": "python3 {path}/main.py",
@@ -19,21 +19,57 @@
       "strict_min_version": "0.10.0"
     }
   },
-  "homepage_url": "https://github.com/flatsiedatsie/bluetoothpairing",
+  "homepage_url": "https://github.com/createcandle/bluetoothpairing",
   "id": "bluetoothpairing",
   "license": "MPL-2.0",
   "manifest_version": 1,
   "name": "Bluetooth pairing",
   "options": {
     "default": {
-      "Disable periodic scanning": false,
+	  "Periodic scanning interval": "5",
+	  "Periodic scanning duration": "2",
       "Debugging": false
     },
     "schema": {
       "properties": {
-        "Disable periodic scanning": {
-          "description": "Normally the addon will check if paired devices are (still) connected once every 5 minutes. Some other addons (Internet Radio, Voco) use this data). If this is somehow interfering, then you can disable it here.",
-          "type": "boolean"
+        "Periodic scanning duration": {
+          "description": "Normally the addon will check if paired devices are (still) connected once every 5 minutes. Some other addons (Internet Radio, Voco) use this data). If this is somehow interfering (for example with audio playback), then you can disable it here.",
+          "type": "string"
+        },
+        "Periodic scanning interval": {
+          "description": "Every couple of minutes this addon will periodically scan for devices and trackers. Some other addons, such as Voco and Internet radio, can use the latest scan reesults to determine if bluetooth speakers are available. You can select how many minutes should pass between the scans. The default is 5 minutes. Set it to 0 to disable periodic scanning.",
+          "enum": [
+			  "0",
+              "1",
+              "2",
+              "3",
+              "4",
+			  "5",
+              "10",
+			  "30",
+              "60"
+          ],
+          "type": "string"
+        },
+        "Periodic scanning duration": {
+          "description": "How many seconds should each periodic scan last? Giving it more time will make it more reliable in detecting all present devices, but long scans may also interfere with playing audio over connected Bluetooth speakers.",
+          "enum": [
+              "1",
+              "2",
+              "3",
+              "4",
+			  "5",
+              "6",
+			  "8",
+              "10",
+              "14",
+              "18",
+			  "22",
+			  "26",
+			  "30"
+			  
+          ],
+          "type": "string"
         },
         "Debugging": {
           "description": "Advanced. Debugging allows you to diagnose any issues with the add-on. If enabled it will result in a lot more debug data in the internal log (which can be found under settings -> developer -> view internal logs).",
@@ -44,7 +80,7 @@
     }
   },
   "short_name": "Bluetooth",
-  "version": "0.3.3",
+  "version": "0.3.5",
   "web_accessible_resources": [
     "css/*.css",
     "images/*.svg",

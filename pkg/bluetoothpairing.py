@@ -64,8 +64,10 @@ class BluetoothpairingAPIHandler(APIHandler):
         self.do_device_scan = True
         self.scanning = False
         self.scanning_start_time = 0
-        self.scan_duration = 2 # in reality, with all the cooldowns, it takes closer to 25 seconds.
-        self.tracker_scan_duration = 10 # currently only used for progress bar calcualtion
+        self.periodic_scanning_duration = 2
+        self.periodic_scanning_interval = 5
+        self.scan_duration = 2 # in reality, with all the sleep cooldowns, it takes longer than the value of this variable
+        self.tracker_scan_duration = 10 # currently only used for progress bar calculation
         self.made_agent = False
         self.disable_periodic_device_scanning = False
         
@@ -80,7 +82,6 @@ class BluetoothpairingAPIHandler(APIHandler):
         self.do_periodic_tracker_scan = False
         self.last_time_new_tracker_detected = 0
         self.recent_new_tracker = None
-        self.disable_periodic_tracker_scanning = False
         
         
         # Audio receiver
@@ -111,7 +112,7 @@ class BluetoothpairingAPIHandler(APIHandler):
         
         # Generate manufacturers lookup tables
         self.manufacturers_lookup_table = {}
-        self.manufacturers_code_lookup_table = {}
+        #self.manufacturers_code_lookup_table = {}
         try:
             
             with open(self.manufacturers_csv_file_path, newline='') as csvfile:
@@ -120,10 +121,10 @@ class BluetoothpairingAPIHandler(APIHandler):
                     if row[0] == 'Decimal':
                         continue
                     manu_number = int(row[0])
-                    manu_code = row[1].replace("0x","")
+                    #manu_code = row[1].replace("0x","")
                     
                     self.manufacturers_lookup_table[manu_number] = row[2]
-                    self.manufacturers_code_lookup_table[manu_code] = row[2]
+                    #self.manufacturers_code_lookup_table[manu_code] = row[2]
             
             #print(str(self.manufacturers_lookup_table))
         except Exception as ex:
@@ -239,17 +240,17 @@ class BluetoothpairingAPIHandler(APIHandler):
             if self.DEBUG:
                 print("-Debugging preference was in config: " + str(self.DEBUG))
             
-        if 'Disable periodic device scanning' in config:
-            self.disable_periodic_device_scanning = bool(config['Disable periodic device scanning'])
-            if self.DEBUG:
-                print("-Disable periodic device scanning preference was in config: " + str(self.disable_periodic_device_scanning))
         
-        if 'Disable periodic tracker scanning' in config:
-            self.disable_periodic_tracker_scanning = bool(config['Disable periodic tracker scanning'])
+        if 'Periodic scanning duration' in config:
+            self.periodic_scanning_duration = int(config['Periodic scanning duration'])
             if self.DEBUG:
-                print("-Disable periodic tracker scanning preference was in config: " + str(self.disable_periodic_tracker_scanning))
-
-
+                print("-Scannning duration preference was in config: " + str(self.periodic_scanning_duration))
+            
+        if 'Periodic scanning interval' in config:
+            self.periodic_scanning_interval = int(config['Periodic scanning interval'])
+            if self.DEBUG:
+                print("-Scannning interval preference was in config: " + str(self.periodic_scanning_interval))
+            
         
 
 
@@ -319,7 +320,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                         print("clock: scan error: " + str(ex))
                     
                     
-                    self.scan_duration = 2 # reset scan duration to two seconds
+                    self.scan_duration = self.periodic_scanning_duration # reset scan duration to the periodic one, in case this was a user-initiated scan
                     self.scanning = False
                     if self.DEBUG:
                         print("clock: scan complete")
@@ -333,34 +334,32 @@ class BluetoothpairingAPIHandler(APIHandler):
                     
                     
                 # Periodic scanning timer
-                clock_loop_counter += 1
-        
+                if self.periodic_scanning_interval > 0:
+                    clock_loop_counter += 1
                 
-                if clock_loop_counter > 300:
-                    clock_loop_counter = 0
-                    
-                    # Every 5 minutes check if connected devices are still connected, or if trusted paired devices have reconnected themselves
-                    if self.disable_periodic_device_scanning == False:
+                    # Every X minutes check if connected devices are still connected, or if trusted paired devices have reconnected themselves, or if trackers are present
+                    if clock_loop_counter > self.periodic_scanning_interval * 60:
+                        clock_loop_counter = 0
                         self.do_device_scan = True
-                
-                
-                # Updating tracker detected state on thing
-                if clock_loop_counter % 3 == 0:
-                    current_time = time.time()
-                    recent_new_tracker_detected = False
-                    for tracker_mac in self.persistent_data['recent_trackers']:
-                        first_time_spotted = self.persistent_data['recent_trackers'][tracker_mac]
-                        if current_time - first_time_spotted < 600:
-                            recent_new_tracker_detected = False
                             
-                        # trackers that were spotted over a year ago may be forgotten? I believe Airtags change their mac every 6 weeks.
-                        if len(self.persistent_data['recent_trackers']) > 200:
-                            if current_time - first_time_spotted > 31557600:
-                                del self.persistent_data['recent_trackers'][tracker_mac]
+                
+                    # Updating tracker detected state on thing
+                    if clock_loop_counter % 3 == 0:
+                        current_time = time.time()
+                        recent_new_tracker_detected = False
+                        for tracker_mac in self.persistent_data['recent_trackers']:
+                            first_time_spotted = self.persistent_data['recent_trackers'][tracker_mac]
+                            if current_time - first_time_spotted < 600:
+                                recent_new_tracker_detected = False
+                            
+                            # trackers that were spotted over a year ago may be forgotten? I believe Airtags change their mac every 6 weeks. High-traffic areas could be swamped with data.
+                            if len(self.persistent_data['recent_trackers']) > 200:
+                                if current_time - first_time_spotted > 31557600:
+                                    del self.persistent_data['recent_trackers'][tracker_mac]
                         
-                    if recent_new_tracker_detected != self.recent_new_tracker:
-                        self.recent_new_tracker = recent_new_tracker_detected
-                        self.adapter.set_recent_tracker_on_thing(recent_new_tracker_detected)
+                        if recent_new_tracker_detected != self.recent_new_tracker:
+                            self.recent_new_tracker = recent_new_tracker_detected
+                            self.adapter.set_recent_tracker_on_thing(recent_new_tracker_detected)
                         
 
             except Exception as ex:
@@ -416,35 +415,44 @@ class BluetoothpairingAPIHandler(APIHandler):
                                      device['type'] = 'audio-card'
                                      if self.DEBUG:
                                          print("device is speaker")
+                                         
                                 if 'Paired: yes' in line:
                                     device['paired'] = True
-                                    
                                     if self.DEBUG:
                                         print("device is paired")
+                                        
                                 if 'Trusted: yes' in line:
                                     device['trusted'] = True
                                     if self.DEBUG:
                                         print("device is trusted")
+                                        
                                 if 'Connected: yes' in line:
                                     device['connected'] = True
-                                    
                                     if self.DEBUG:
                                         print("device is connected")
+                                        
                                 if 'ManufacturerData Key:' in line:
-                                    line = line.replace('\n','')
-                                    manu_code = str(line[-4:])
-                                    if manu_code != None:
-                                        manu_code = manu_code.upper()
-                                        if self.DEBUG:
-                                            print("manu code: -" + str(manu_code) + "-")
-                                        if manu_code in self.manufacturers_code_lookup_table:
-                                            device['manufacturer'] = self.manufacturers_code_lookup_table[manu_code]
-                                        else:
-                                            if self.DEBUG:
-                                                print("manufacturer code not found in lookup table")
+                                    try:
+                                        line = line.replace('\n','')
+                                        manu_code = str(line[-4:])
+                                    
+
+                                        if manu_code != None:
+                                            manu_number = int('0x' + manu_code, 16)
+                                            if manu_number in self.manufacturers_code_lookup_table:
+                                                device['manufacturer'] = self.manufacturers_lookup_table[manu_number]
+                                            
+                                            #manu_code = manu_code.upper()
+                                            #if self.DEBUG:
+                                            #    print("manu code: -" + str(manu_code) + "-")
+                                            #if manu_code in self.manufacturers_code_lookup_table:
+                                            #    device['manufacturer'] = self.manufacturers_code_lookup_table[manu_code]
+                                            else:
+                                                if self.DEBUG:
+                                                    print("manufacturer number not found in lookup table: " + str(manu_number))
+                                    except Exception as ex:
+                                        print("error parsing manufacturer code: " + str(ex))
                                 
-                            
-                            
                             
                             if device['paired']:
                                 paired_devices.append(device)
@@ -583,8 +591,6 @@ class BluetoothpairingAPIHandler(APIHandler):
                             print("/scan - initiating scan")
                         state = 'ok'
                         
-                        
-                        
                         run_command('rfkill unblock bluetooth')
                         
                         self.set_power(True)
@@ -603,8 +609,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                             content_type='application/json',
                             content=json.dumps({'state':state, 'scanning':self.scanning, 'debug':self.DEBUG}),
                         )
-                            
-                            
+                        
                     elif request.path == '/poll':
                         if self.DEBUG:
                             print("/poll - returning found bluetooth devices")
@@ -618,14 +623,14 @@ class BluetoothpairingAPIHandler(APIHandler):
                                     if self.DEBUG:
                                         print("-updating list of paired devices")
                                     #self.paired_devices = self.get_devices_list('paired-devices')
-                                    self.parse_scan_result()
+                                    self.parse_scan_result(self.scan_result)
                                     
                             except Exception as ex:
                                 print("Error with get_paired in poll request: " + str(ex))
                         
                         # calculate scan progress percentage
                         scan_progress = time.time() - self.scanning_start_time 
-                        expected_scan_duration = 5 + self.scan_duration + self.tracker_scan_duration
+                        expected_scan_duration = 5 + self.scan_duration
                         if scan_progress > expected_scan_duration:
                             scan_progress = expected_scan_duration
                     
@@ -1023,16 +1028,17 @@ class BluetoothpairingDevice(Device):
                             None)
                             
                             
-        
-        self.properties["bluetooth_recent_tracker"] = BluetoothpairingProperty(
-                            self,
-                            "bluetooth_recent_tracker",
-                            {
-                                'title': "New tracker detected",
-                                'type': 'boolean',
-                                'readOnly': True,
-                            },
-                            False)
+        if self.api_handler.periodic_scanning_interval > 0:
+            self.properties["bluetooth_recent_tracker"] = BluetoothpairingProperty(
+                                self,
+                                "bluetooth_recent_tracker",
+                                {
+                                    'title': "New tracker detected",
+                                    'type': 'boolean',
+                                    'readOnly': True,
+                                },
+                                False)
+            
        
         """
         self.properties["bluetooth_audio_receiver"] = BluetoothpairingProperty(

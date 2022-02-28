@@ -248,11 +248,45 @@
     display:flex;
 }
 
+
+/*  Left part of item  */
+ 
 .extension-bluetoothpairing-item-left{
 	display:flex;
     flex-direction:column;
     margin-bottom:4rem;
 }
+
+.extension-bluetoothpairing-item-rssi-container{
+    margin-top:1.4rem;
+}
+.extension-bluetoothpairing-item-rssi-image-container{
+    width:3rem;
+    height:3rem;
+    margin-right:2rem;
+    background-image:url('../images/signal-indicator-translucent.svg');
+    background-size:3rem;
+    background-repeat:no-repeat;
+}
+
+.extension-bluetoothpairing-item-rssi-image-cutoff{
+    width:0;
+    height:3rem;
+    overflow:hidden;
+}
+
+.extension-bluetoothpairing-item-rssi-image{
+    width:3rem;
+}
+
+.extension-bluetoothpairing-item-rssi-value{
+    display:none;
+}
+
+.developer .extension-bluetoothpairing-item-rssi-value{
+    display:inline-block;
+}
+
 
 .extension-bluetoothpairing-item-setter{
 	color:white;
