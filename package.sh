@@ -15,7 +15,7 @@ pip3 install -r requirements.txt -t lib --no-binary :all: --prefix ""
 mkdir -p package
 
 # Put package together
-cp -r pkg lib LICENSE manifest.json *.py bluetooth_manufacturers.csv README.md css images js views package/
+cp -r pkg lib LICENSE manifest.json *.py bluetooth_manufacturers.csv silence.wav README.md css images js views package/
 find package -type f -name '*.pyc' -delete
 find package -type f -name '._*' -delete
 find package -type d -empty -delete
