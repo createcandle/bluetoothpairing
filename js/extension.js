@@ -162,7 +162,7 @@
             const tracker_list = document.getElementById('extension-bluetoothpairing-list-trackers');
 
             if(paired_list == null){
-                console.log('no HTML to generate into (yet)');
+                //console.log('no HTML to generate into (yet)');
                 return;
             }
             paired_list.innerHTML = "";
@@ -195,7 +195,7 @@
                         list = document.getElementById('extension-bluetoothpairing-list-trackers');
 					}
                     
-					console.log(items[item]);
+					//console.log(items[item]);
                     var clone = original.cloneNode(true);
                     clone.removeAttribute('id');
 
@@ -211,12 +211,12 @@
 
                     // Add icon
                     if(items[item]['name'] == 'Airtag'){
-                        console.log('adding icon');
+                        //console.log('adding icon');
                         clone.querySelector('.extension-bluetoothpairing-item-icon-container').innerHTML = '<img src="/extensions/bluetoothpairing/images/airtag-icon.svg" alt="Airtag icon"/>';
                     }
                     
                     if(typeof items[item]['rssi'] != 'undefined'){
-                        console.log('rssi: ', items[item]['rssi']);
+                        //console.log('rssi: ', items[item]['rssi']);
                         
                         const rssi_opacity = 0.5 + (items[item]['rssi'] + 100) / 50;
                         var rssi_percentage = (items[item]['rssi'] + 100) * 1.25;
@@ -590,13 +590,13 @@
                     clone.querySelectorAll('.extension-bluetoothpairing-enabled')[0].checked = items[item]['connected'];
                     
 					if (items[item]['connected'] == true) {
-                        console.log("items seems to be connected.");
+                        //console.log("items seems to be connected.");
                         //clone.querySelectorAll('.extension-bluetoothpairing-enabled')[0].removeAttribute('checked');
                         
                         clone.classList.add('extension-bluetoothpairing-item-connected');
                     }
 					
-                    console.log(items[item]['address'].replace(':','-').replace(':','-').replace(':','-').replace(':','-').replace(':','-'));
+                    //console.log(items[item]['address'].replace(':','-').replace(':','-').replace(':','-').replace(':','-').replace(':','-'));
 					if(document.getElementById(safe_mac) == null){
                         if( items[item]['name'] == items[item]['address'].replace(':','-').replace(':','-').replace(':','-').replace(':','-').replace(':','-') ){
                             clone.classList.add('extension-bluetoothpairing-item-name-is-mac');

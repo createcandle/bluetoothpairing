@@ -148,6 +148,9 @@ class BluetoothpairingAPIHandler(APIHandler):
         if not 'audio_receiver' in self.persistent_data:
             self.persistent_data['audio_receiver'] = False        
         
+        if not 'connected' in self.persistent_data:
+            self.persistent_data['connected'] = []
+        
         if not 'recent_trackers' in self.persistent_data:
             self.persistent_data['recent_trackers'] = {}
         
@@ -486,7 +489,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                 except Exception as ex:
                     print("Error parsing bluetoothCTL scan result" + str(ex))
             
-            self.connected_devices = connected_devices
+            self.persistent_data['connected'] = connected_devices
             self.paired_devices = paired_devices
             
             
@@ -502,11 +505,6 @@ class BluetoothpairingAPIHandler(APIHandler):
                     if device['manufacturer'] in self.manufacturers_lookup_table:
                         device['manufacturer'] = self.manufacturers_lookup_table[device['manufacturer']]
                 
-                #if device['connected'] == True:
-                #    self.connected_devices.append(device)
-                
-                #if device['paired'] == True:
-                #    self.paired_devices.append(device)
                 
                 if device['type'] == 'tracker':
                     trackers.append(device)
