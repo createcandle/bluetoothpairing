@@ -92,7 +92,12 @@ class BluetoothpairingAPIHandler(APIHandler):
         self.addon_dir = os.path.join(self.user_profile['addonsDir'], self.addon_name)
         self.data_dir = os.path.join(self.user_profile['dataDir'], self.addon_name)
         
+        # Persistence file
         self.persistence_file_path = os.path.join(self.data_dir, 'persistence.json')
+        
+        # Silence wav
+        self.silence_file_path = os.path.join(self.addon_dir, 'silence.wav')
+        
         
         self.scanner_origin_lib_dir = os.path.join(self.addon_dir, 'lib')
         self.scanner_destination_lib_dir = os.path.join(self.data_dir, 'lib')
@@ -205,10 +210,11 @@ class BluetoothpairingAPIHandler(APIHandler):
 
         # Reconnect to previously connected devices.
         for previously_connected_device in self.persistent_data['connected']:
-            if self.DEBUG:
-                print(" reconnecting to: " + str(previously_connected_device))
-            self.bluetoothctl('connect ' + str(previously_connected_device['mac']) )
-            time.sleep(3)
+            if 'address' in previously_connected_device:
+                if self.DEBUG:
+                    print(" reconnecting to: " + str(previously_connected_device))
+                self.bluetoothctl('connect ' + str(previously_connected_device['address']) )
+                time.sleep(3)
         
 
         # Start clock thread
@@ -254,7 +260,6 @@ class BluetoothpairingAPIHandler(APIHandler):
             if self.DEBUG:
                 print("-Debugging preference was in config: " + str(self.DEBUG))
             
-        
         if 'Periodic scanning duration' in config:
             self.periodic_scanning_duration = int(config['Periodic scanning duration'])
             if self.DEBUG:
@@ -278,6 +283,7 @@ class BluetoothpairingAPIHandler(APIHandler):
         if self.DEBUG:
             print("CLOCK INIT")
             
+        speaker_keep_alive_counter = 0
         clock_loop_counter = 0
         while self.running:
             try:
@@ -307,27 +313,6 @@ class BluetoothpairingAPIHandler(APIHandler):
                                 self.create_devices_list()
                             except Exception as ex:
                                 print("error calling/parsing scanner: " + str(ex))
-                            
-                        
-                        #if self.running:
-                            
-                            #time.sleep(1)
-                        
-                            #self.paired_devices = self.create_devices_list('paired-devices')
-                            #self.available_devices = self.create_devices_list('devices')
-                    
-                            #if self.DEBUG:
-                            #    print("all available devices: " + str(self.available_devices))
-                    
-                            #self.discovered_devices = [d for d in self.available_devices if d not in self.paired_devices]
-                    
-                            #time.sleep(1)
-                        
-                        #if self.running:
-                        #    if self.scan_duration > 2:
-                        #        self.tracker_scan()
-                        
-                        
                         
                         
                     except Exception as ex:
@@ -379,6 +364,24 @@ class BluetoothpairingAPIHandler(APIHandler):
                             self.recent_new_tracker = recent_new_tracker_detected
                             self.adapter.set_recent_tracker_on_thing(recent_new_tracker_detected)
                         
+
+
+                # Keep connected speakers awake
+                speaker_keep_alive_counter += 1
+                if speaker_keep_alive_counter > 26:
+                    speaker_keep_alive_counter = 0
+                    if self.DEBUG:
+                        print("clock: starting attempt to keep connected speakers awake")
+                    # Play silence.wav to connected speakers
+                    for previously_connected_device in self.persistent_data['connected']:
+                        if 'type' in previously_connected_device and 'address' in previously_connected_device:
+                            if previously_connected_device['type'] == 'audio-card':
+                                if self.DEBUG:
+                                    print(" keeping speaker awake: " + str(previously_connected_device))
+                                try:
+                                    os.system('aplay  -D bluealsa:DEV=' + previously_connected_device['address'] + ' ' + self.silence_file_path)
+                                except Exception as ex:
+                                    print("error while keeping speaker alive: " + str(ex))
 
             except Exception as ex:
                 print("Bluetooth Pairing clock error: " + str(ex))
@@ -512,9 +515,10 @@ class BluetoothpairingAPIHandler(APIHandler):
                         airtag_count += 1
                     else:
                         if device['address'] not in self.persistent_data['recent_trackers']:
+                            if self.DEBUG:
+                                print("Detected a new tracker that is not an Airtag. Adding to persistent memory.")
                             self.persistent_data['recent_trackers'][ device['address'] ] = int(time.time())
-                            self.save_persistent_data()
-                            self.persistent_data['last_time_new_tracker_detected'] = time.time()
+                            self.persistent_data['last_time_new_tracker_detected'] = int(time.time())
 
                 devices.append(device)
 
