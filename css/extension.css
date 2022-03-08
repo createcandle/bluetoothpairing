@@ -93,6 +93,17 @@
 
 
 
+
+/*  ITEM  */
+
+#extension-bluetoothpairing-original-item{
+	opacity:.3;
+	display:none;
+	text-align:left;
+}
+
+
+
 /*  DELETE  */
 
 /*
@@ -334,6 +345,11 @@
 }
 
 
+
+
+
+/*   LISTS  */
+
 .extension-bluetoothpairing-list{
 	width:auto;
 	display:flex;
@@ -366,12 +382,16 @@
 
 
 
+/*  discovered  */
 
-#extension-bluetoothpairing-original-item{
-	opacity:.3;
-	display:none;
-	text-align:left;
+#extension-bluetoothpairing-list-discovered .extension-bluetoothpairing-item-left{
+    display:none;
 }
+
+
+
+
+/*  UI ELEMENTS  */
 
 
 #extension-bluetoothpairing-view select{

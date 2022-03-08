@@ -740,6 +740,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                                 
                                 
                             elif action == 'pair':
+                                self.bluetoothctl('pairable on')
                                 result = self.bluetoothctl('pair ' + mac)
                                 if 'Pairing successful' in result:
                                     state = True
