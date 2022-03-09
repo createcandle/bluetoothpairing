@@ -44,6 +44,7 @@ def device_found(device: BLEDevice, advertisement_data: AdvertisementData):
         cleaned = {'manufacturer':0,'type':'normal','name':str(device.name)}
         properties = device.details['props']
         for k in properties:
+            #print("$ " + str(k) + " - " + str(type( properties[k] )))
             if isinstance(properties[k], dict):
                 cleaned[k.lower()] = {}
                 for u in properties[k]:
@@ -79,8 +80,8 @@ def device_found(device: BLEDevice, advertisement_data: AdvertisementData):
                 except Exception as ex:
                     #print("list error: " + str(ex))
                     pass
-            else:
-                
+                    
+            elif not isinstance(properties[k], bytes):
                 if k == 'Name':
                     if 'tile' in properties[k].lower():
                         #print(">> TILE SPOTTED")

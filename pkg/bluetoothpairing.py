@@ -304,6 +304,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                     
                         if self.running:
                             #scan_output = self.bluetoothctl('--timeout ' + str(self.scan_duration) + ' scan on>/dev/null')
+                            subprocess.Popen(["sudo","bluetoothctl","--timeout",str(self.scan_duration),"scan","on"],stdout=subprocess.PIPE) # running this alongside the Bleak scan helps it detect non-BLE devices too.
                             scan_output = run_command("sudo python3 " + str(self.scanner_path) + ' ' + str(self.scan_duration))
                             if self.DEBUG:
                                 print("scan output: \n" + str(scan_output))
@@ -606,6 +607,10 @@ class BluetoothpairingAPIHandler(APIHandler):
             self.discoverable_countdown = 60 # discoverable will also turn itself off automatically after 90 seconds. This is mostly to make the UI reflect that.
         else:
             self.bluetoothctl('discoverable off')
+            #if self.scanning == False:
+            #    if self.DEBUG:
+            #        print("Disabling discoverable cancelled: device is currently busy scanning")
+            #    self.bluetoothctl('discoverable off')
             
         self.adapter.set_discoverable_on_thing(state)
             
@@ -642,7 +647,8 @@ class BluetoothpairingAPIHandler(APIHandler):
                         run_command('rfkill unblock bluetooth')
                         
                         self.set_power(True)
-                        
+                        self.bluetoothctl('agent on')
+                        self.set_discoverable(True)
                         #self.paired_devices = self.create_devices_list('paired-devices')
                         
                         self.scan_duration = 18
