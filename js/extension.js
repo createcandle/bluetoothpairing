@@ -218,11 +218,12 @@
                     if(typeof items[item]['rssi'] != 'undefined'){
                         //console.log('rssi: ', items[item]['rssi']);
                         
-                        const rssi_opacity = 0.5 + (items[item]['rssi'] + 100) / 50;
-                        var rssi_percentage = (items[item]['rssi'] + 100) * 1.25;
+                        const rssi = parseInt(items[item]['rssi']);
+                        const rssi_opacity = 0.5 + (rssi + 100) / 50;
+                        var rssi_percentage = (rssi + 100) * 1.25;
                         if(rssi_percentage > 100){rssi_percentage = 100;}
                         
-                        clone.querySelector('.extension-bluetoothpairing-item-rssi-container').innerHTML = '<div class="extension-bluetoothpairing-item-rssi-image-container" style="opacity:' + rssi_opacity + '"><div class="extension-bluetoothpairing-item-rssi-image-cutoff" style="width:' + rssi_percentage + '%"><img class="extension-bluetoothpairing-item-rssi-image" src="/extensions/bluetoothpairing/images/signal-indicator.svg" alt="RSSI: ' + items[item]['rssi'] + '"/></div></div><span class="extension-bluetoothpairing-item-rssi-value">' + items[item]['rssi']+ '</span>';
+                        clone.querySelector('.extension-bluetoothpairing-item-rssi-container').innerHTML = '<div class="extension-bluetoothpairing-item-rssi-image-container" style="opacity:' + rssi_opacity + '"><div class="extension-bluetoothpairing-item-rssi-image-cutoff" style="width:' + rssi_percentage + '%"><img class="extension-bluetoothpairing-item-rssi-image" src="/extensions/bluetoothpairing/images/signal-indicator.svg" alt="RSSI: ' + items[item]['rssi'] + '"/></div></div><span class="extension-bluetoothpairing-item-rssi-value">' + items[item]['rssi'] + '</span>';
 
                     }
                     
@@ -392,7 +393,7 @@
                         info_panel.style.display = 'block';
                         //console.log(main_item);
                         //main_item.classList.add("info");
-                        /*
+                        
                         // Communicate with backend
                         window.API.postJson(
                             `/extensions/${this.id}/api/update`, {
@@ -429,7 +430,7 @@
                             //pre.innerText = e.toString();
                             
                         });
-                        */
+                        
                     });
 					
                     // Add checkbox click event

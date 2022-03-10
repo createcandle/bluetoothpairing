@@ -80,6 +80,7 @@ class BluetoothpairingAPIHandler(APIHandler):
         self.trackers = [] # contains a list of trackers that are unlikely to change mac address. Tiles don't change. Airtags change every 15 minutes.
         self.do_periodic_tracker_scan = False
         self.recent_new_tracker = None
+        self.show_tracker_popup = False
         
         
         # Audio receiver
@@ -270,6 +271,11 @@ class BluetoothpairingAPIHandler(APIHandler):
             if self.DEBUG:
                 print("-Scannning interval preference was in config: " + str(self.periodic_scanning_interval))
             
+        
+        if 'Show tracker pop-up' in config:
+            self.show_tracker_popup = bool(config['Show tracker pop-up'])
+            if self.DEBUG:
+                print("-Show tracker pop-up preference was in config: " + str(self.show_tracker_popup))
         
 
 
@@ -494,7 +500,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                     print("Error parsing bluetoothCTL scan result" + str(ex))
             
             self.persistent_data['connected'] = connected_devices
-            self.paired_devices = paired_devices
+            self.paired_devices = paired_devices # TODO self.paired_devices is not used anymore
             
             
             
@@ -678,7 +684,8 @@ class BluetoothpairingAPIHandler(APIHandler):
                                     if self.DEBUG:
                                         print("-updating list of paired devices")
                                     #self.paired_devices = self.create_devices_list('paired-devices')
-                                    self.create_devices_list()
+                                
+                                self.create_devices_list()
                                     
                             except Exception as ex:
                                 print("Error with get_paired in poll request: " + str(ex))
@@ -753,8 +760,8 @@ class BluetoothpairingAPIHandler(APIHandler):
                                     
                                     time.sleep(3)
                                     
-                                    self.paired_devices = self.create_devices_list()
-                                
+                                    #self.paired_devices = self.create_devices_list()
+                                    self.create_devices_list()
                             
                             elif action == 'connect':
                                 result = self.bluetoothctl('connect ' + mac)
@@ -771,7 +778,8 @@ class BluetoothpairingAPIHandler(APIHandler):
                                             print("info test: it was connected")
                                     
                                 if state:
-                                    self.paired_devices = self.create_devices_list() # udpates connected devices list in persistent json
+                                    #self.paired_devices = self.create_devices_list() # udpates connected devices list in persistent json
+                                    self.create_devices_list()
                                     
                                 
                             elif action == 'trust':
@@ -1000,6 +1008,11 @@ class BluetoothpairingAdapter(Adapter):
                 self.thing.properties["bluetooth_recent_tracker"].update( state )
             else:
                 print("Error: could not set recent tracker on thing, the thing did not exist?")
+                
+            if self.api_handler.show_tracker_popup:
+                if state:
+                    self.send_pairing_prompt("The number of detected Bluetooth trackers has increased")
+                
         except Exception as ex:
             print("Error setting recent tracker of thing: " + str(ex))   
 
