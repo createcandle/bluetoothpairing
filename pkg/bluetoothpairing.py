@@ -34,18 +34,19 @@ class BluetoothpairingAPIHandler(APIHandler):
         
         # Intiate extension addon API handler
         try:
-            manifest_fname = os.path.join(
-                os.path.dirname(__file__),
-                '..',
-                'manifest.json'
-            )
+            #manifest_fname = os.path.join(
+            #    os.path.dirname(__file__),
+            #    '..',
+            #    'manifest.json'
+            #)
 
-            with open(manifest_fname, 'rt') as f:
-                manifest = json.load(f)
+            #with open(manifest_fname, 'rt') as f:
+            #    manifest = json.load(f)
 
-            APIHandler.__init__(self, manifest['id'])
+            #APIHandler.__init__(self, manifest['id'])
+            APIHandler.__init__(self, self.addon_name)
             self.manager_proxy.add_api_handler(self)
-            self.addon_name = manifest['id']
+            #self.addon_name = manifest['id']
 
             if self.DEBUG:
                 print("self.manager_proxy = " + str(self.manager_proxy))

@@ -65,14 +65,13 @@
 			  "22",
 			  "26",
 			  "30"
-			  
           ],
           "type": "string"
         },
         "Show tracker pop-up": {
           "description": "If enabled, an alert will pop-up whenever the number of detected bluetooth trackers increases.",
           "type": "boolean"
-        }		
+        },
         "Debugging": {
           "description": "Advanced. Debugging allows you to diagnose any issues with the add-on. If enabled it will result in a lot more debug data in the internal log (which can be found under settings -> developer -> view internal logs).",
           "type": "boolean"
@@ -82,7 +81,7 @@
     }
   },
   "short_name": "Bluetooth",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "web_accessible_resources": [
     "css/*.css",
     "images/*.svg",
