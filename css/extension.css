@@ -150,7 +150,7 @@
     fill:#900;
 }
 
-.extension-bluetoothpairing-item-connected .extension-bluetoothpairing-item-right{
+#extension-bluetoothpairing-list-paired .extension-bluetoothpairing-item-connected .extension-bluetoothpairing-item-right{
     display:none;
 }
 
@@ -194,7 +194,12 @@
 .extension-bluetoothpairing-item-connecting .switch,
 .extension-bluetoothpairing-item-pairing .extension-bluetoothpairing-item-pair-button,
 .extension-bluetoothpairing-item-pairing .extension-bluetoothpairing-item-pair-button:hover{
-	animation:extension-bluetoothpairing-fade 2s linear infinite;
+	animation:extension-bluetoothpairing-fade .5s linear infinite;
+}
+
+.extension-bluetoothpairing-item-connecting,
+.extension-bluetoothpairing-item-pairing{
+    opacity:.7;
 }
 
 /*
@@ -228,6 +233,9 @@
 }
 
 
+.extension-bluetoothpairing-address{
+    cursor:pointer;
+}
 
 .extension-bluetoothpairing-name-is-mac{
     display:none;

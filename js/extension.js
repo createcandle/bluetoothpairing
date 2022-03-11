@@ -176,16 +176,19 @@
             try {
                 
                 items.sort((a, b) => (a.name.toLowerCase() > b.name.toLowerCase()) ? 1 : -1) // sort alphabetically
-                
-                
 
                 // Loop over all items
                 for (var item in items) {
                     
+                    console.log(items[item]);
+                    
                     var list_name = 'discovered';
                     var list = document.getElementById('extension-bluetoothpairing-list-discovered');
                     
+                    
+                    
 					if( items[item]['paired'] == true ){
+                        console.log('paired item');
                         list_name = 'paired';
                         paired_counter++;
                         list = document.getElementById('extension-bluetoothpairing-list-paired');
@@ -208,7 +211,6 @@
                     clone.setAttribute('id', safe_mac);
 
 
-
                     // Add icon
                     if(items[item]['name'] == 'Airtag'){
                         //console.log('adding icon');
@@ -226,8 +228,6 @@
                         clone.querySelector('.extension-bluetoothpairing-item-rssi-container').innerHTML = '<div class="extension-bluetoothpairing-item-rssi-image-container" style="opacity:' + rssi_opacity + '"><div class="extension-bluetoothpairing-item-rssi-image-cutoff" style="width:' + rssi_percentage + '%"><img class="extension-bluetoothpairing-item-rssi-image" src="/extensions/bluetoothpairing/images/signal-indicator.svg" alt="RSSI: ' + items[item]['rssi'] + '"/></div></div><span class="extension-bluetoothpairing-item-rssi-value">' + items[item]['rssi'] + '</span>';
 
                     }
-                    
-                    
                     
 
                     // Add manufacturer
@@ -272,7 +272,8 @@
                             
                             //console.log(main_item);
                             main_item.classList.add("extension-bluetoothpairing-item-pairing");
-    						
+    						info_panel.innerHTML = '';
+                            
 
                             // Communicate with backend
                             window.API.postJson(
@@ -330,6 +331,7 @@
                             var main_item = this.getClosest(event.currentTarget,'.extension-bluetoothpairing-item');
                             //console.log(main_item);
                             main_item.classList.add("extension-bluetoothpairing-item-pairing");
+                            info_panel.innerHTML = '';
     						//const info_panel = main_item.querySelectorAll('.extension-bluetoothpairing-item-info')[0];
 
                             // Communicate with backend
@@ -340,7 +342,10 @@
                                 }
                             ).then((body) => {
                                 //thing_list.innerText = body['state'];
-                                //console.log("pair response: ", body);
+                                if(this.debug){
+                                    console.log("pair response: ", body);
+                                }
+                                
                             
                                 if (body['state'] != 'ok') {
                                     if( body['state'] == true ){
@@ -370,12 +375,10 @@
                                 */
 
                             }).catch((e) => {
-                                //console.log("bluetoothpairing: server connection error while pairing: " + e.toString());
+                                console.log("bluetoothpairing: server connection error while pairing: ", e);
                                 //pre.innerText = e.toString();
     							info_panel.innerHTML = "Error connecting to server";
     							main_item.classList.remove("extension-bluetoothpairing-item-pairing");
-                            
-                                
                             });
                         });
                     }
@@ -390,7 +393,9 @@
                         var target = event.currentTarget;
                         var main_item = target.parentElement.parentElement.parentElement; //parent of "target"
                         const info_panel = main_item.querySelector('.extension-bluetoothpairing-item-info');
+                        info_panel.innerHTML = '';
                         info_panel.style.display = 'block';
+                        
                         //console.log(main_item);
                         //main_item.classList.add("info");
                         
@@ -428,7 +433,6 @@
                         }).catch((e) => {
                             console.log("bluetoothpairing: server connection error while pairing: ", e);
                             //pre.innerText = e.toString();
-                            
                         });
                         
                     });
@@ -440,6 +444,7 @@
                         
                         var target = event.currentTarget;
                         var main_item = this.getClosest(target,'.extension-bluetoothpairing-item');
+                        info_panel.innerHTML = '';
                         //var main_item = target.parentElement.parentElement.parentElement.parentElement; //parent of "target"
                         //console.log(main_item);
                         //console.log("this?: ", this);
@@ -484,7 +489,8 @@
                                 
                             });
 
-                        } else {
+                        } 
+                        else {
                             //console.log("checkbox was checked. Event:");
 							//console.log(event);
 							
@@ -545,7 +551,7 @@
             								
 
                                         }).catch((e) => {
-                                            //console.log("bluetoothpairing: server connection error while connecting: ", e);
+                                            console.log("bluetoothpairing: connect: server connection error while connecting: ", e);
                                             //pre.innerText = e.toString();
                                             
                                         });
@@ -607,6 +613,9 @@
     						list.prepend(clone);
     					}
 					}
+                    else{
+                        console.log("odd, that mac was already on the page: ", safe_mac);
+                    }
                     
                 }
                 

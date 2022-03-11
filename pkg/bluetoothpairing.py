@@ -507,29 +507,37 @@ class BluetoothpairingAPIHandler(APIHandler):
             
             # Part 2: parsing the actual scan results
             
-            if time.time() - self.scanning_start_time  > 300:
+            if time.time() - self.scanning_start_time > 300:
+                if self.DEBUG:
+                    print("clearing old scan results (they were older than 5 minutes)") # with periodic scanning enabled, is it even possible to get stale scan result?
                 self.scan_result = [] # clear the scan results if they're too old.
             
             
             for device in self.scan_result:
-                if 'manufacturer' in device:
-                    if device['manufacturer'] in self.manufacturers_lookup_table:
-                        device['manufacturer'] = self.manufacturers_lookup_table[device['manufacturer']]
+                
+                if 'address' in device:
+                    if not any(d['address'] == device['address'] for d in devices):
+                
+                        if 'manufacturer' in device:
+                            if device['manufacturer'] in self.manufacturers_lookup_table:
+                                device['manufacturer'] = self.manufacturers_lookup_table[device['manufacturer']]
                 
                 
-                if device['type'] == 'tracker':
-                    trackers.append(device)
-                    if device['name'] == 'Airtag':
-                        airtag_count += 1
+                        if device['type'] == 'tracker':
+                            trackers.append(device)
+                            if device['name'] == 'Airtag':
+                                airtag_count += 1
+                            else:
+                                if device['address'] not in self.persistent_data['recent_trackers']:
+                                    if self.DEBUG:
+                                        print("Detected a new tracker that is not an Airtag. Adding to persistent memory.")
+                                    self.persistent_data['recent_trackers'][ device['address'] ] = int(time.time())
+                                    self.persistent_data['last_time_new_tracker_detected'] = int(time.time())
+
+                        devices.append(device)
                     else:
-                        if device['address'] not in self.persistent_data['recent_trackers']:
-                            if self.DEBUG:
-                                print("Detected a new tracker that is not an Airtag. Adding to persistent memory.")
-                            self.persistent_data['recent_trackers'][ device['address'] ] = int(time.time())
-                            self.persistent_data['last_time_new_tracker_detected'] = int(time.time())
-
-                devices.append(device)
-
+                        if self.DEBUG:
+                            print("that detefted vice was already in the paired devices list from BluetoothCTL. Skipping.")
 
             
             # If periodic scanning is active, indicate when the tracker count increases
