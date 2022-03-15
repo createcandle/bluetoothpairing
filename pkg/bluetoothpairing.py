@@ -69,6 +69,7 @@ class BluetoothpairingAPIHandler(APIHandler):
         self.periodic_scanning_interval = 5
         self.scan_duration = 2 # in reality, with all the sleep cooldowns, it takes longer than the value of this variable
         self.made_agent = False
+        self.busy_creating_devices_list = False
         
         
         self.all_devices = []
@@ -402,7 +403,8 @@ class BluetoothpairingAPIHandler(APIHandler):
     def create_devices_list(self):
         if self.DEBUG:
             print("in create_devices_list")
-        
+        if self.busy_creating_devices_list == False:
+            self.busy_creating_devices_list == True
         
         try:
             devices = []
@@ -566,7 +568,7 @@ class BluetoothpairingAPIHandler(APIHandler):
         except Exception as ex:
             print('Error while parsing scan result: ' + str(ex))
                 
-        
+        self.busy_creating_devices_list = False
 
 
 

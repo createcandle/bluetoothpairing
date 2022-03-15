@@ -21,7 +21,7 @@
                 .then((text) => {
                     this.content = text;
         			if( document.location.href.endsWith("/extensions/bluetoothpairing") ){
-                        //console.log('followers: calling this.show from constructor init because at /followers url');
+                        //console.log('bluetoothpairing: calling this.show from constructor init because started at url');
         				this.show();
         			}
                 })
@@ -31,14 +31,13 @@
 
 
         show() {
-            
+            //console.log('bluetoothpairing: in show');
             if(this.content == ''){
                 //console.log("aborting show - content not loaded yet");
                 return;
             }
             
             //console.log('in show');
-            
             this.view.innerHTML = this.content;
             //console.log("bluetoothpairing show called");
 			
@@ -93,10 +92,11 @@
         scan_poll(get_paired=false) {
 			//console.log("in scan_poll. get_paired: ", get_paired);
 			const list = document.getElementById('extension-bluetoothpairing-list-paired');
-
-            if(list == null){
+            const content_el = document.getElementById('extension-bluetoothpairing-content');
+            
+            if(list == null || content_el == null){
                 console.log('Error: list output div did not exist yet?');
-                return
+                return;
             }
 
             window.API.postJson(
@@ -114,7 +114,9 @@
                 if(typeof body.scanning != 'undefined'){
                     if(body.scanning){
                         //console.log("poll: controller is scanning");
-                        document.getElementById('extension-bluetoothpairing-content').classList.add('extension-bluetoothpairing-scanning');
+                        if(content_el != null){
+                            document.getElementById('extension-bluetoothpairing-content').classList.add('extension-bluetoothpairing-scanning');
+                        }
                     
                         if(typeof body.scan_progress != 'undefined'){
                             document.getElementById('extension-bluetoothpairing-progress-bar').style.width = body.scan_progress + '%';
@@ -130,7 +132,10 @@
                         //document.getElementById('extension-bluetoothpairing-list-trackers').innerHTML = "";
                         //document.getElementById('extension-bluetoothpairing-list-discovered').innerHTML = "";
                         this.regenerate_items(body['all_devices']);
-                        document.getElementById('extension-bluetoothpairing-content').classList.remove('extension-bluetoothpairing-scanning');
+                        if( document.getElementById('extension-bluetoothpairing-content') != null){
+                            document.getElementById('extension-bluetoothpairing-content').classList.remove('extension-bluetoothpairing-scanning');
+                        }
+                        
                     }
                 }
                 
@@ -180,7 +185,7 @@
                 // Loop over all items
                 for (var item in items) {
                     
-                    console.log(items[item]);
+                    //console.log(items[item]);
                     
                     var list_name = 'discovered';
                     var list = document.getElementById('extension-bluetoothpairing-list-discovered');
@@ -188,7 +193,7 @@
                     
                     
 					if( items[item]['paired'] == true ){
-                        console.log('paired item');
+                        //console.log('paired item');
                         list_name = 'paired';
                         paired_counter++;
                         list = document.getElementById('extension-bluetoothpairing-list-paired');
@@ -283,7 +288,9 @@
                                 }
                             ).then((body) => {
                                 //thing_list.innerText = body['state'];
-                                //console.log("unpair response: ", body);
+                                if(this.debug){
+                                    console.log("unpair response: ", body);
+                                }
                             
                                 if (body['state'] != 'ok') {
                                     if( body['state'] == true ){
@@ -640,7 +647,7 @@
 
 		hide(){
 			//console.log("hiding bluetooth extension");
-			this.view.innerHTML = "";
+			//this.view.innerHTML = "x";
 		}
 
     }

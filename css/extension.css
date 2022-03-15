@@ -392,7 +392,7 @@
 
 /*  discovered  */
 
-#extension-bluetoothpairing-list-discovered .extension-bluetoothpairing-item-left{
+#extension-bluetoothpairing-list-discovered .extension-bluetoothpairing-item-menu .extension-bluetoothpairing-item-left{
     display:none;
 }
 
