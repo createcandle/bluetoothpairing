@@ -223,6 +223,9 @@ class BluetoothpairingAPIHandler(APIHandler):
         # Start clock thread
         self.running = True
         
+        run_command('sudo bluetoothctl agent NoInputNoOutput')
+        run_command('sudo bluetoothctl default-agent')
+        
         if self.DEBUG:
             print("Starting the internal clock")
         try:
