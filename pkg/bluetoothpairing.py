@@ -83,7 +83,7 @@ class BluetoothpairingAPIHandler(APIHandler):
         self.do_periodic_tracker_scan = False
         self.recent_new_tracker = None
         self.show_tracker_popup = False
-        
+        self.suspiciousness_duration = 1000 # seconds. A little over 16 minutes.
         
         # Audio receiver
         self.discoverable = False
@@ -159,21 +159,23 @@ class BluetoothpairingAPIHandler(APIHandler):
         if not 'connected' in self.persistent_data:
             self.persistent_data['connected'] = []
         
-        if not 'recent_trackers' in self.persistent_data:
-            self.persistent_data['recent_trackers'] = {}
+        if not 'known_trackers' in self.persistent_data:
+            self.persistent_data['known_trackers'] = {}
         
         if not 'previous_tracker_count' in self.persistent_data:
             self.persistent_data['previous_tracker_count'] = 0
 
-        if not 'previous_airtag_count' in self.persistent_data:
-            self.persistent_data['previous_airtag_count'] = 0
+        #if not 'previous_airtag_count' in self.persistent_data:
+        #    self.persistent_data['previous_airtag_count'] = 0
         
-        if not 'previous_previous_airtag_count' in self.persistent_data:
-            self.persistent_data['previous_previous_airtag_count'] = 0
+        #if not 'previous_previous_airtag_count' in self.persistent_data:
+        #    self.persistent_data['previous_previous_airtag_count'] = 0
         
         if not 'last_time_new_tracker_detected' in self.persistent_data:
             self.persistent_data['last_time_new_tracker_detected'] = 0
 
+        if not 'tracker_suspects' in self.persistent_data:
+            self.persistent_data['tracker_suspects'] = {} # holds data on recent airtags, with their mac address as the key
         
         
         # LOAD CONFIG
@@ -302,8 +304,6 @@ class BluetoothpairingAPIHandler(APIHandler):
                     if self.DEBUG:
                         print("clock: starting scan. Duration: " + str(self.scan_duration))
                         
-                    
-                        
                     self.do_device_scan = False
                     self.scanning = True
                     self.scanning_start_time = time.time()
@@ -355,26 +355,55 @@ class BluetoothpairingAPIHandler(APIHandler):
                             
                 
                     # Updating tracker detected state on thing
-                    if clock_loop_counter % 3 == 0:
-                        current_time = time.time()
-                        recent_new_tracker_detected = False
-                        
-                        if time.time() - self.persistent_data['last_time_new_tracker_detected'] < 300:
-                            recent_new_tracker_detected = True
-                        
-                        for tracker_mac in self.persistent_data['recent_trackers']:
-                            #first_time_spotted = self.persistent_data['recent_trackers'][tracker_mac]
-                            #if current_time - first_time_spotted < 600:
-                            #    recent_new_tracker_detected = False
+                    if clock_loop_counter % 6 == 0:
+                        try:
+                            current_time = time.time()
                             
-                            # trackers that were spotted over a year ago may be forgotten? I believe Airtags change their mac every 6 weeks. High-traffic areas could be swamped with data.
-                            if len(self.persistent_data['recent_trackers']) > 200:
-                                if current_time - first_time_spotted > 11557600: # about three months
-                                    del self.persistent_data['recent_trackers'][tracker_mac]
+                            # Toggle the "recent new tracker" switch on the thing
+                            recent_new_tracker_detected = False
+                            if current_time - self.persistent_data['last_time_new_tracker_detected'] < 300:
+                                recent_new_tracker_detected = True
+                                
+                            if recent_new_tracker_detected != self.recent_new_tracker:
+                                self.recent_new_tracker = recent_new_tracker_detected 
+                                self.adapter.set_recent_tracker_on_thing(recent_new_tracker_detected)
                         
-                        if recent_new_tracker_detected != self.recent_new_tracker:
-                            self.recent_new_tracker = recent_new_tracker_detected
-                            self.adapter.set_recent_tracker_on_thing(recent_new_tracker_detected)
+                        
+                            if self.DEBUG:
+                                print("__checking known trackers__")
+                                
+                            recently_spotted_known_trackers_count = 0
+                            for tracker_mac in self.persistent_data['known_trackers']:
+                                if self.DEBUG:
+                                    print("known_trackers mac: " + str(tracker_mac))
+                                    
+                                # Get timestamps for tracker
+                                last_time_spotted = self.persistent_data['known_trackers'][tracker_mac]['last_seen']
+                                first_time_spotted = self.persistent_data['known_trackers'][tracker_mac]['first_seen']
+                                if self.DEBUG:
+                                    print("- known tracker first time spotted: " + str(first_time_spotted))
+                                    print("- known tracker last time spotted: " + str(last_time_spotted))
+                                    
+                                # count how many known trackers were detected in the last 15 minutes. This helps ignore passers by, and helps accumulate data from multiple separate scans that may have occured in the last 15 minutes.
+                                if current_time - last_time_spotted < self.suspiciousness_duration:
+                                    recently_spotted_known_trackers_count += 1
+                            
+                                # trackers that were spotted long ago may be forgotten? Just in case someone living in a high-traffic areas is swamped with trackers that linger for 15 minutes (living above a store?).
+                                if len(self.persistent_data['known_trackers']) > 100:
+                                    if current_time - first_time_spotted > 11557600: # about three months
+                                        del self.persistent_data['known_trackers'][tracker_mac]
+                        
+                            if self.DEBUG:
+                                print("recently_spotted_known_trackers_count: " + str(recently_spotted_known_trackers_count))
+                            if recently_spotted_known_trackers_count != self.persistent_data['previous_tracker_count']:
+                                self.adapter.set_trackers_on_thing(recently_spotted_known_trackers_count)
+                                if self.DEBUG:
+                                    print("number of detected known trackers changed to: " + str(recently_spotted_known_trackers_count))
+                            self.persistent_data['previous_tracker_count'] = recently_spotted_known_trackers_count
+                            
+                        except Exception as ex:
+                            print("clock: error while looping over known trackers: " + str(ex))
+                        
                         
 
 
@@ -415,7 +444,9 @@ class BluetoothpairingAPIHandler(APIHandler):
             paired_devices = []
             trackers = []
             airtag_count = 0
+            dubious_airtag_count = 0 # airtags that are suspicious, as they seem to be far away from their owner
             
+            now_stamp = int(time.time())
             
             # Part 1, using the information from BluetoothCTL to gat an initial list of paired and connected devices.
             
@@ -428,7 +459,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                         if self.DEBUG:
                             print("line2: " + str(line2))
                 
-                        device = {}
+                        device = {'suspiciousness':'safe', 'last_seen':now_stamp}
                 
                         parts = line2.split(" ", 1)
                         if self.DEBUG:
@@ -512,54 +543,160 @@ class BluetoothpairingAPIHandler(APIHandler):
             
             # Part 2: parsing the actual scan results
             
-            if time.time() - self.scanning_start_time > 300:
+            if now_stamp - self.scanning_start_time > 300:
                 if self.DEBUG:
                     print("clearing old scan results (they were older than 5 minutes)") # with periodic scanning enabled, is it even possible to get stale scan result?
                 self.scan_result = [] # clear the scan results if they're too old.
-            
+            else:
+                if self.DEBUG:
+                    print("scan results were fresh enough")
             
             for device in self.scan_result:
-                
+                if self.DEBUG:
+                    print(".")
                 if 'address' in device:
                     if not any(d['address'] == device['address'] for d in devices):
+                        
+                        device['suspiciousness'] = 'unknown'
+                
+                        device['last_seen'] = now_stamp
                 
                         if 'manufacturer' in device:
                             if device['manufacturer'] in self.manufacturers_lookup_table:
                                 device['manufacturer'] = self.manufacturers_lookup_table[device['manufacturer']]
                 
                 
-                        if device['type'] == 'tracker':
-                            trackers.append(device)
-                            if device['name'] == 'Airtag':
-                                airtag_count += 1
-                            else:
-                                if device['address'] not in self.persistent_data['recent_trackers']:
+                        if device['type'] == 'tracker' and self.periodic_scanning_interval > 0:
+                            
+                            if self.DEBUG:
+                                print("Parsing a tracker__")
+                            
+                            try:
+
+                                # Airtag?
+                                if device['name'] == 'Airtag':
+                                    airtag_count += 1
+                                
                                     if self.DEBUG:
-                                        print("Detected a new tracker that is not an Airtag. Adding to persistent memory.")
-                                    self.persistent_data['recent_trackers'][ device['address'] ] = int(time.time())
-                                    self.persistent_data['last_time_new_tracker_detected'] = int(time.time())
+                                        print("- Airtag device: " + str(device))
+                                else:
+                                    if self.DEBUG:
+                                        print("NOT an airtag. name: " + str(device['name']))
+                                
+
+                                # Check if tracker has been around for a while, or is just passing by
+                                if device['address'] in self.persistent_data['known_trackers']:
+                                    if self.DEBUG:
+                                        print("- it's a known tracker")
+                                        print("now_stamp: " + str(now_stamp))
+                                        print("self.persistent_data['known_trackers'][ device['address'] ]: " + str(self.persistent_data['known_trackers'][ device['address'] ]))
+                                        print("self.persistent_data['known_trackers'][ device['address'] ]['last_seen']: " + str(self.persistent_data['known_trackers'][ device['address'] ]['last_seen']))
+                                        
+                                    self.persistent_data['known_trackers'][ device['address'] ]['last_seen'] = now_stamp
+                                    
+                                    if self.DEBUG:
+                                        print("setting suspiciousness to known")
+                                    device['suspiciousness'] = 'known'
+                                    device['first_seen'] = self.persistent_data['known_trackers'][ device['address'] ]['first_seen']
+                                    
+                                    if device['name'] == 'Airtag':
+                                        dubious_airtag_count += 1
+                                        device['suspiciousness'] = 'dangerous'
+                                    
+                                elif not device['address'] in self.persistent_data['tracker_suspects']:
+                                    if self.DEBUG:
+                                        print("adding newly spotted tracker to suspects list: " + str(device['address']))
+                                    self.persistent_data['tracker_suspects'][ device['address'] ] = {'address':device['address'], 'first_seen':now_stamp, 'last_seen':now_stamp}
+                                    device['first_seen'] = now_stamp
+                                    device['suspiciousness'] = 'fresh'
+                                    
+                                else:
+                                    # it's in the suspicious list, but not yet in the known trackers list
+                                    
+                                    try:
+                                        if 'first_seen' in self.persistent_data['tracker_suspects'][ device['address'] ]:
+                                            if self.persistent_data['tracker_suspects'][ device['address'] ]['first_seen'] < (now_stamp - self.suspiciousness_duration):
+                                                if self.DEBUG:
+                                                    print("ALERT! NEW TRACKER SPOTTED for longer than 15 minutes: " + str(device['address']))
+                                        
+                                                # update the device data to mark it as suspicious
+                                                device['suspiciousness'] = 'known-new'
+                                        
+                                                # mark the last time that we found a new tracker
+                                                self.persistent_data['last_time_new_tracker_detected'] = now_stamp
+                                        
+                                                # move from suspects list to known trackers list
+                                                self.persistent_data['known_trackers'][ device['address'] ] = {'name':device['name'], 'first_seen': self.persistent_data['tracker_suspects'][ device['address'] ]['first_seen'], 'last_seen':now_stamp} # stores the first_seen time of known trackers
+                                                
+                                                try:
+                                                    del self.persistent_data['tracker_suspects'][ device['address'] ]
+                                                except Exception as ex:
+                                                    print("Error while trying to delete tracker from suspects list: " + str(ex))
+                                        
+                                                if device['name'] == 'Airtag':
+                                                    dubious_airtag_count += 1
+                                                    device['suspiciousness'] = 'dangerous-new'
+                                    
+                                            else:
+                                                device['suspiciousness'] = 'waiting'
+                                                if self.DEBUG:
+                                                    print("This device is in the suspects list, but hasn't been around for 15 minutes yet.")
+                                                    
+                                            
+                                            device['first_seen'] = self.persistent_data['tracker_suspects'][ device['address'] ]['first_seen'] # copy first seen data over from the suspects list, might be nice in the UI
+                                            
+                                        else:
+                                            if self.DEBUG:
+                                                print("error, tracker had no first_seen timestamp")
+                                            
+                                        
+                                            
+                                    except Exception as ex:
+                                        print('Error while parsing tracker in limbo: ' + str(ex))
+                                        
+                                
+                                    
+                            except Exception as ex:
+                                print('Error while parsing tracker: ' + str(ex))
+                                    
+                            trackers.append(device)
 
                         devices.append(device)
                     else:
                         if self.DEBUG:
-                            print("that detefted vice was already in the paired devices list from BluetoothCTL. Skipping.")
+                            print("that detected device was already in the paired devices list from BluetoothCTL. Skipping.")
 
             
             # If periodic scanning is active, indicate when the tracker count increases
             if self.periodic_scanning_interval > 0:
-                if len(trackers) != self.persistent_data['previous_tracker_count']:
-                    self.adapter.set_trackers_on_thing(len(trackers))
-                    if self.DEBUG:
-                        print("number of detected trackers changed to: " + str(len(trackers)))
-                self.persistent_data['previous_tracker_count'] = len(trackers)
+                #if len(trackers) != self.persistent_data['previous_tracker_count']:
+                #    self.adapter.set_trackers_on_thing(len(trackers))
+                #    if self.DEBUG:
+                #        print("number of detected trackers changed to: " + str(len(trackers)))
+                #self.persistent_data['previous_tracker_count'] = len(trackers)
                 
-                if airtag_count != self.persistent_data['previous_airtag_count']:
-                    if airtag_count > self.persistent_data['previous_airtag_count'] and airtag_count > self.persistent_data['previous_previous_airtag_count']: # compare with previous two scans, to avoid flutter
-                        self.persistent_data['last_time_new_tracker_detected'] = time.time()
-                    self.persistent_data['previous_previous_airtag_count'] = self.persistent_data['previous_airtag_count']
-                    self.persistent_data['previous_airtag_count'] = airtag_count
-                    
+                #if airtag_count != self.persistent_data['previous_airtag_count']:
+                    #if airtag_count > self.persistent_data['previous_airtag_count'] and airtag_count > self.persistent_data['previous_previous_airtag_count']: # compare with previous two scans, to avoid flutter
+                    #    self.persistent_data['last_time_new_tracker_detected'] = time.time()
+                    #self.persistent_data['previous_previous_airtag_count'] = self.persistent_data['previous_airtag_count']
+                    #self.persistent_data['previous_airtag_count'] = airtag_count
                 
+                # remove airtags that haven't been seen for more than half an hour from the suspects list
+                try:
+                    for suspect_mac in self.persistent_data['tracker_suspects']:
+                        
+                        print("suspect_mac: " + str(suspect_mac))
+                        print("self.persistent_data['tracker_suspects'][suspect_mac]: " + str(self.persistent_data['tracker_suspects'][suspect_mac]))
+                        print("self.persistent_data['tracker_suspects'][suspect_mac]['first_seen']: " + str(self.persistent_data['tracker_suspects'][suspect_mac]['first_seen']))
+                        
+                        if self.persistent_data['tracker_suspects'][suspect_mac]['first_seen'] < (now_stamp - (2 * self.suspiciousness_duration)) and self.persistent_data['tracker_suspects'][suspect_mac]['last_seen'] < (now_stamp - (2 * self.suspiciousness_duration)):
+                            del self.persistent_data['tracker_suspects'][ suspect_mac ]
+                        
+                            if self.DEBUG:
+                                print("removed an Airtag from the suspect list")
+                                
+                except Exception as ex:
+                    print('Error while pruning airtag suspects: ' + str(ex))
             
             if self.DEBUG:
                 print("\n\n----------------------------------------devices: " + str(devices))
@@ -706,7 +843,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                         
                         # calculate scan progress percentage
                         scan_progress = time.time() - self.scanning_start_time 
-                        expected_scan_duration = 5 + self.scan_duration
+                        expected_scan_duration = 6 + self.scan_duration
                         if scan_progress > expected_scan_duration:
                             scan_progress = expected_scan_duration
                     
@@ -1108,7 +1245,7 @@ class BluetoothpairingDevice(Device):
                                 'type': 'integer',
                                 'readOnly': True,
                             },
-                            None)
+                            self.adapter.api_handler.persistent_data['previous_tracker_count'])
                             
                             
         if self.api_handler.periodic_scanning_interval > 0:

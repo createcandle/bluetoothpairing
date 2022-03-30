@@ -65,6 +65,7 @@ def device_found(device: BLEDevice, advertisement_data: AdvertisementData):
                             cleaned['name'] = 'Airtag'
                             cleaned['type'] = 'tracker'                            
                             cleaned['airtag_status'] = str(properties[k][u][3])
+                            cleaned['airtag_public_key'] = str(properties[k][u][4]) + '.' + str(properties[k][u][5]) + '.' + str(properties[k][u][6]) + '.' + str(properties[k][u][7]) + '.' + str(properties[k][u][8]) + '.' + str(properties[k][u][9])
                             
                         
                         if "'\\x02\\x15" in cleaned['binary']:

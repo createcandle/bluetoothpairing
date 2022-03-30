@@ -445,7 +445,7 @@
                     });
 					
                     // Add checkbox click event
-                    const checkbox = clone.querySelectorAll('.switch-checkbox')[0];
+                    const checkbox = clone.querySelector('.switch-checkbox');
                     
                     checkbox.addEventListener('change', (event) => {
                         
@@ -575,6 +575,8 @@
                             });
                         }
                     });
+                    
+                    // Add name
 					if(typeof items[item]['name'] != 'undefined'){
 					    clone.querySelector('.extension-bluetoothpairing-name').innerText = items[item]['name']
 					}
@@ -582,6 +584,7 @@
                         clone.querySelector('.extension-bluetoothpairing-name').innerText = items[item]['address']
                     }
                     
+                    // Add mac address
                     clone.querySelector('.extension-bluetoothpairing-address').innerText = items[item]['address']
                     
                     
@@ -609,6 +612,53 @@
                         
                         clone.classList.add('extension-bluetoothpairing-item-connected');
                     }
+                    
+                    
+					if (typeof items[item]['suspiciousness'] != 'undefined') {
+                        //console.log("item suspiciousness: ", items[item]['suspiciousness']);
+                        //clone.querySelectorAll('.extension-bluetoothpairing-enabled')[0].removeAttribute('checked');
+                        
+                        clone.classList.add('extension-bluetoothpairing-item-suspiciousness-' + items[item]['suspiciousness']);
+                    }
+                    else{
+                        //console.log("missing suspiciousness value");
+                    }
+                    
+                    if (typeof items[item]['first_seen'] != 'undefined') {
+                        const first_seen_spans = clone.querySelectorAll('.extension-bluetoothpairing-item-first-seen');
+                        
+                        var current_timestamp = new Date().getTime() 
+                        current_timestamp = Math.round(current_timestamp / 1000);
+                        const first_seen_delta = current_timestamp - items[item]['first_seen'];
+                        
+                        var first_seen_string = "...";
+                        if(first_seen_delta > 3600){
+                            var first_seen_date = new Date(items[item]['first_seen'] * 1000);
+                            first_seen_string = "on " + first_seen_date.toLocaleDateString() +  " at " + first_seen_date.toLocaleTimeString();
+                        }
+                        else{
+                            first_seen_string = Math.round(first_seen_delta / 60) + " minutes ago";
+                        }
+                        
+                        
+                        if(first_seen_string != '...'){
+                        	for (var r = 0; r < first_seen_spans.length; r++) {
+                                first_seen_spans[r].innerText = first_seen_string;
+                        	}
+                        }
+                        else{
+                        	for (var r = 0; r < first_seen_spans.length; r++) {
+                                first_seen_spans[r].style.display = 'none';
+                        	}
+                        }
+                        
+                    }
+                    else{
+                        //console.log("Device has no first_seen value");
+                    }
+                    
+                    
+                    
 					
                     //console.log(items[item]['address'].replace(':','-').replace(':','-').replace(':','-').replace(':','-').replace(':','-'));
 					if(document.getElementById(safe_mac) == null){

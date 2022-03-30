@@ -527,7 +527,9 @@
 	text-align:center;
 }
 
-/*  tracker item  */
+
+
+/*  TRACKER item  */
 
 .extension-bluetoothpairing-item-info{
     word-break: break-all;
@@ -539,6 +541,36 @@
 
 #extension-bluetoothpairing-list-trackers .extension-bluetoothpairing-item-setter{
     border-right:none;
+}
+
+.extension-bluetoothpairing-item-suspiciousness-dangerous,
+.extension-bluetoothpairing-item-suspiciousness-dangerous-new{
+    background-color:red;
+}
+
+.extension-bluetoothpairing-item-suspiciousness-known,
+.extension-bluetoothpairing-item-suspiciousness-known-new{
+    background-color:orange;
+}
+
+
+
+.extension-bluetoothpairing-item-known-explanation{
+    display:none;
+}
+.developer .extension-bluetoothpairing-item-known-explanation,
+.extension-bluetoothpairing-item-suspiciousness-known .extension-bluetoothpairing-item-known-explanation,
+.extension-bluetoothpairing-item-suspiciousness-known-new .extension-bluetoothpairing-item-known-explanation{
+    display:block;
+}
+
+
+.extension-bluetoothpairing-item-dangerous-explanation{
+    display:none;
+}
+.extension-bluetoothpairing-item-suspiciousness-dangerous .extension-bluetoothpairing-item-dangerous-explanation,
+.extension-bluetoothpairing-item-suspiciousness-dangerous-new .extension-bluetoothpairing-item-dangerous-explanation{
+    display:block;
 }
 
 
