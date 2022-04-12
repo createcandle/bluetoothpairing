@@ -26,8 +26,9 @@
   "name": "Bluetooth pairing",
   "options": {
     "default": {
-	  "Periodic scanning interval": "5",
-	  "Periodic scanning duration": "2",
+	  "Periodic scanning interval": "1",
+	  "Periodic scanning duration": "1",
+	  "Airtag certainty duration": "30",
 	  "Show tracker pop-up": false,
       "Debugging": false
     },
@@ -68,6 +69,16 @@
           ],
           "type": "string"
         },
+        "Airtag certainty duration": {
+          "description": "When a new Airtag is discovered it takes a while before it's certain that it has been separated from its owner. In theory this should be clear after 15 minutes, but in practise this seems to take up to 30 minutes. The default is 30. If you set it to a lower value you may be notified of Airtags sooner, but at the cost of getting false alarms.",
+          "enum": [
+              "30",
+              "25",
+			  "20",
+              "15"
+          ],
+          "type": "string"
+        },
         "Show tracker pop-up": {
           "description": "If enabled, an alert will pop-up whenever the number of detected bluetooth trackers increases.",
           "type": "boolean"
@@ -81,7 +92,7 @@
     }
   },
   "short_name": "Bluetooth",
-  "version": "0.5.0",
+  "version": "0.5.2",
   "web_accessible_resources": [
     "css/*.css",
     "images/*.svg",

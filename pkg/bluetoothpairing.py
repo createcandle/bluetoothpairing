@@ -65,8 +65,8 @@ class BluetoothpairingAPIHandler(APIHandler):
         self.do_device_scan = True
         self.scanning = False
         self.scanning_start_time = 0
-        self.periodic_scanning_duration = 2
-        self.periodic_scanning_interval = 5
+        self.periodic_scanning_duration = 1
+        self.periodic_scanning_interval = 1
         self.scan_duration = 2 # in reality, with all the sleep cooldowns, it takes longer than the value of this variable
         self.made_agent = False
         self.busy_creating_devices_list = False
@@ -83,7 +83,8 @@ class BluetoothpairingAPIHandler(APIHandler):
         self.do_periodic_tracker_scan = False
         self.recent_new_tracker = None
         self.show_tracker_popup = False
-        self.suspiciousness_duration = 1000 # seconds. A little over 16 minutes.
+        self.suspiciousness_duration = 1800 # seconds. 30 minutes.
+        self.tracker_names_list = ['nanolink aps'] # additional trackers could be added here
         
         # Audio receiver
         self.discoverable = False
@@ -277,7 +278,11 @@ class BluetoothpairingAPIHandler(APIHandler):
             self.periodic_scanning_interval = int(config['Periodic scanning interval'])
             if self.DEBUG:
                 print("-Scannning interval preference was in config: " + str(self.periodic_scanning_interval))
-            
+        
+        if 'Airtag certainty duration' in config:
+            self.suspiciousness_duration = int(config['Airtag certainty duration']) * 60
+            if self.DEBUG:
+                print("-Airtag certainty duration preference was in config: " + str(self.suspiciousness_duration))
         
         if 'Show tracker pop-up' in config:
             self.show_tracker_popup = bool(config['Show tracker pop-up'])
@@ -390,7 +395,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                             
                                 # trackers that were spotted long ago may be forgotten? Just in case someone living in a high-traffic areas is swamped with trackers that linger for 15 minutes (living above a store?).
                                 if len(self.persistent_data['known_trackers']) > 100:
-                                    if current_time - first_time_spotted > 11557600: # about three months
+                                    if current_time - first_time_spotted > 604800: # a week
                                         del self.persistent_data['known_trackers'][tracker_mac]
                         
                             if self.DEBUG:
@@ -560,12 +565,18 @@ class BluetoothpairingAPIHandler(APIHandler):
                         device['suspiciousness'] = 'unknown'
                 
                         device['last_seen'] = now_stamp
+                        
+                        # Mark a device as a tracker based on its name
+                        if device['name'].lower() in self.tracker_names_list:
+                            device['type'] = 'tracker'
                 
+                        # Change manufacturer number into manufacturer name
                         if 'manufacturer' in device:
                             if device['manufacturer'] in self.manufacturers_lookup_table:
                                 device['manufacturer'] = self.manufacturers_lookup_table[device['manufacturer']]
                 
-                
+                        
+                        # If continuous scanning is enabled, handle the suspects list
                         if device['type'] == 'tracker' and self.periodic_scanning_interval > 0:
                             
                             if self.DEBUG:
@@ -684,10 +695,6 @@ class BluetoothpairingAPIHandler(APIHandler):
                 # remove airtags that haven't been seen for more than half an hour from the suspects list
                 try:
                     for suspect_mac in self.persistent_data['tracker_suspects']:
-                        
-                        print("suspect_mac: " + str(suspect_mac))
-                        print("self.persistent_data['tracker_suspects'][suspect_mac]: " + str(self.persistent_data['tracker_suspects'][suspect_mac]))
-                        print("self.persistent_data['tracker_suspects'][suspect_mac]['first_seen']: " + str(self.persistent_data['tracker_suspects'][suspect_mac]['first_seen']))
                         
                         if self.persistent_data['tracker_suspects'][suspect_mac]['first_seen'] < (now_stamp - (2 * self.suspiciousness_duration)) and self.persistent_data['tracker_suspects'][suspect_mac]['last_seen'] < (now_stamp - (2 * self.suspiciousness_duration)):
                             del self.persistent_data['tracker_suspects'][ suspect_mac ]

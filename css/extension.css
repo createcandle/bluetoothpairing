@@ -558,7 +558,7 @@
 .extension-bluetoothpairing-item-known-explanation{
     display:none;
 }
-.developer .extension-bluetoothpairing-item-known-explanation,
+.developer #extension-bluetoothpairing-list-trackers .extension-bluetoothpairing-item-known-explanation,
 .extension-bluetoothpairing-item-suspiciousness-known .extension-bluetoothpairing-item-known-explanation,
 .extension-bluetoothpairing-item-suspiciousness-known-new .extension-bluetoothpairing-item-known-explanation{
     display:block;
