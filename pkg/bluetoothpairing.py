@@ -614,7 +614,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                                         dubious_airtag_count += 1
                                         device['suspiciousness'] = 'dangerous'
                                     
-                                elif not device['address'] in self.persistent_data['tracker_suspects']:
+                                elif device['address'] not in self.persistent_data['tracker_suspects']:
                                     if self.DEBUG:
                                         print("adding newly spotted tracker to suspects list: " + str(device['address']))
                                     self.persistent_data['tracker_suspects'][ device['address'] ] = {'address':device['address'], 'first_seen':now_stamp, 'last_seen':now_stamp}
@@ -626,6 +626,9 @@ class BluetoothpairingAPIHandler(APIHandler):
                                     
                                     try:
                                         if 'first_seen' in self.persistent_data['tracker_suspects'][ device['address'] ]:
+                                            
+                                            device['first_seen'] = self.persistent_data['tracker_suspects'][ device['address'] ]['first_seen'] # copy first seen data over from the suspects list, might be nice in the UI
+                                            
                                             if self.persistent_data['tracker_suspects'][ device['address'] ]['first_seen'] < (now_stamp - self.suspiciousness_duration):
                                                 if self.DEBUG:
                                                     print("ALERT! NEW TRACKER SPOTTED for longer than 15 minutes: " + str(device['address']))
@@ -637,9 +640,13 @@ class BluetoothpairingAPIHandler(APIHandler):
                                                 self.persistent_data['last_time_new_tracker_detected'] = now_stamp
                                         
                                                 # move from suspects list to known trackers list
-                                                self.persistent_data['known_trackers'][ device['address'] ] = {'name':device['name'], 'first_seen': self.persistent_data['tracker_suspects'][ device['address'] ]['first_seen'], 'last_seen':now_stamp} # stores the first_seen time of known trackers
+                                                if 'name' in device:
+                                                    self.persistent_data['known_trackers'][ device['address'] ] = {'name':device['name'], 'first_seen': self.persistent_data['tracker_suspects'][ device['address'] ]['first_seen'], 'last_seen':now_stamp} # stores the first_seen time of known trackers
+                                                else:
+                                                    print("Error, device had no name?")
                                                 
                                                 try:
+                                                    #if device['address'] in self.persistent_data['tracker_suspects']:
                                                     del self.persistent_data['tracker_suspects'][ device['address'] ]
                                                 except Exception as ex:
                                                     print("Error while trying to delete tracker from suspects list: " + str(ex))
@@ -653,9 +660,6 @@ class BluetoothpairingAPIHandler(APIHandler):
                                                 if self.DEBUG:
                                                     print("This device is in the suspects list, but hasn't been around for 15 minutes yet.")
                                                     
-                                            
-                                            device['first_seen'] = self.persistent_data['tracker_suspects'][ device['address'] ]['first_seen'] # copy first seen data over from the suspects list, might be nice in the UI
-                                            
                                         else:
                                             if self.DEBUG:
                                                 print("error, tracker had no first_seen timestamp")
