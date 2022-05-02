@@ -119,7 +119,6 @@ class BluetoothpairingAPIHandler(APIHandler):
         
         # Generate manufacturers lookup tables
         self.manufacturers_lookup_table = {}
-        #self.manufacturers_code_lookup_table = {}
         try:
             
             with open(self.manufacturers_csv_file_path, newline='') as csvfile:
@@ -127,13 +126,12 @@ class BluetoothpairingAPIHandler(APIHandler):
                 for row in manus:
                     if row[0] == 'Decimal':
                         continue
-                    manu_number = int(row[0])
+                    manu_number = str(row[0])
                     #manu_code = row[1].replace("0x","")
                     
-                    self.manufacturers_lookup_table[manu_number] = row[2]
-                    #self.manufacturers_code_lookup_table[manu_code] = row[2]
+                    self.manufacturers_lookup_table[str(manu_number)] = row[2]
             
-            #print(str(self.manufacturers_lookup_table))
+            
         except Exception as ex:
             print("error parsing manufacturers csv: " + str(ex))
         
@@ -215,13 +213,15 @@ class BluetoothpairingAPIHandler(APIHandler):
 
 
         # Reconnect to previously connected devices.
-        for previously_connected_device in self.persistent_data['connected']:
-            if 'address' in previously_connected_device:
-                if self.DEBUG:
-                    print(" reconnecting to: " + str(previously_connected_device))
-                self.bluetoothctl('connect ' + str(previously_connected_device['address']) )
-                time.sleep(3)
-        
+        try:
+            for previously_connected_device in self.persistent_data['connected']:
+                if 'address' in previously_connected_device:
+                    if self.DEBUG:
+                        print(" reconnecting to: " + str(previously_connected_device))
+                    self.bluetoothctl('connect ' + str(previously_connected_device['address']) )
+                    time.sleep(3)
+        except Exception as ex:
+            print("Error reconnecting to bluetooth devices: " + str(ex))
 
         # Start clock thread
         self.running = True
@@ -242,6 +242,10 @@ class BluetoothpairingAPIHandler(APIHandler):
         
         self.ready = True
         
+        #print("self.manufacturers_lookup_table: " + str(self.manufacturers_lookup_table))
+        
+        #print("hasattr()?: " + str(  self.hasattr(manufacturers_lookup_table)  ))
+        #print("-------------- 2557 0: " + str(self.manufacturers_code_lookup_table[0]))
 
 
     # Read the settings from the add-on settings page
@@ -375,19 +379,19 @@ class BluetoothpairingAPIHandler(APIHandler):
                         
                         
                             if self.DEBUG:
-                                print("__checking known trackers__")
+                                print("__checking known trackers. Length: " + str(len(self.persistent_data['known_trackers'])))
                                 
                             recently_spotted_known_trackers_count = 0
                             for tracker_mac in self.persistent_data['known_trackers']:
-                                if self.DEBUG:
-                                    print("known_trackers mac: " + str(tracker_mac))
+                                #if self.DEBUG:
+                                #    print("known_trackers mac: " + str(tracker_mac))
                                     
                                 # Get timestamps for tracker
                                 last_time_spotted = self.persistent_data['known_trackers'][tracker_mac]['last_seen']
                                 first_time_spotted = self.persistent_data['known_trackers'][tracker_mac]['first_seen']
-                                if self.DEBUG:
-                                    print("- known tracker first time spotted: " + str(first_time_spotted))
-                                    print("- known tracker last time spotted: " + str(last_time_spotted))
+                                #if self.DEBUG:
+                                #    print("- known tracker first time spotted: " + str(first_time_spotted))
+                                #    print("- known tracker last time spotted: " + str(last_time_spotted))
                                     
                                 # count how many known trackers were detected in the last 15 minutes. This helps ignore passers by, and helps accumulate data from multiple separate scans that may have occured in the last 15 minutes.
                                 if current_time - last_time_spotted < self.suspiciousness_duration:
@@ -416,18 +420,23 @@ class BluetoothpairingAPIHandler(APIHandler):
                 speaker_keep_alive_counter += 1
                 if speaker_keep_alive_counter > 26:
                     speaker_keep_alive_counter = 0
-                    if self.DEBUG:
-                        print("clock: starting attempt to keep connected speakers awake")
-                    # Play silence.wav to connected speakers
-                    for previously_connected_device in self.persistent_data['connected']:
-                        if 'type' in previously_connected_device and 'address' in previously_connected_device:
-                            if previously_connected_device['type'] == 'audio-card':
-                                if self.DEBUG:
-                                    print(" keeping speaker awake: " + str(previously_connected_device))
-                                try:
-                                    os.system('aplay  -D bluealsa:DEV=' + previously_connected_device['address'] + ' ' + self.silence_file_path)
-                                except Exception as ex:
-                                    print("error while keeping speaker alive: " + str(ex))
+                    
+                    if 'omxplayer -o alsa:bluealsa' in run_command('ps aux | grep omxplayer'):
+                        if self.DEBUG:   
+                            print("omxplayer seems to already be streaming music to a bluetooth speaker")
+                    else:
+                        if self.DEBUG:
+                            print("clock: starting attempt to keep connected speakers awake")
+                        # Play silence.wav to connected speakers
+                        for previously_connected_device in self.persistent_data['connected']:
+                            if 'type' in previously_connected_device and 'address' in previously_connected_device:
+                                if previously_connected_device['type'] == 'audio-card':
+                                    if self.DEBUG:
+                                        print(" keeping speaker awake: " + str(previously_connected_device))
+                                    try:
+                                        os.system('aplay  -D bluealsa:DEV=' + previously_connected_device['address'] + ' ' + self.silence_file_path)
+                                    except Exception as ex:
+                                        print("error while keeping speaker alive: " + str(ex))
 
             except Exception as ex:
                 print("Bluetooth Pairing clock error: " + str(ex))
@@ -514,8 +523,15 @@ class BluetoothpairingAPIHandler(APIHandler):
 
                                         if manu_code != None:
                                             manu_number = int('0x' + manu_code, 16)
-                                            if manu_number in self.manufacturers_code_lookup_table:
-                                                device['manufacturer'] = self.manufacturers_lookup_table[manu_number]
+                                            if self.DEBUG:
+                                                print("manu_number: " + str(manu_number))
+                                            #print("self.manufacturers_lookup_table: " + str(self.manufacturers_lookup_table))
+                                            #print("self.manufacturers_code_lookup_table[manu]: " + str( self.manufacturers_code_lookup_table[str(manu_number)] ))
+                                            if str(manu_number) in self.manufacturers_lookup_table:
+                                                
+                                                device['manufacturer'] = self.manufacturers_lookup_table[str(manu_number)]
+                                                if self.DEBUG:
+                                                    print("bingo, spotted manufacturer id. It is: " + str(device['manufacturer']))
                                             
                                             #manu_code = manu_code.upper()
                                             #if self.DEBUG:
@@ -614,7 +630,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                                         dubious_airtag_count += 1
                                         device['suspiciousness'] = 'dangerous'
                                     
-                                elif device['address'] not in self.persistent_data['tracker_suspects']:
+                                elif not device['address'] in self.persistent_data['tracker_suspects']:
                                     if self.DEBUG:
                                         print("adding newly spotted tracker to suspects list: " + str(device['address']))
                                     self.persistent_data['tracker_suspects'][ device['address'] ] = {'address':device['address'], 'first_seen':now_stamp, 'last_seen':now_stamp}
@@ -626,9 +642,6 @@ class BluetoothpairingAPIHandler(APIHandler):
                                     
                                     try:
                                         if 'first_seen' in self.persistent_data['tracker_suspects'][ device['address'] ]:
-                                            
-                                            device['first_seen'] = self.persistent_data['tracker_suspects'][ device['address'] ]['first_seen'] # copy first seen data over from the suspects list, might be nice in the UI
-                                            
                                             if self.persistent_data['tracker_suspects'][ device['address'] ]['first_seen'] < (now_stamp - self.suspiciousness_duration):
                                                 if self.DEBUG:
                                                     print("ALERT! NEW TRACKER SPOTTED for longer than 15 minutes: " + str(device['address']))
@@ -640,13 +653,9 @@ class BluetoothpairingAPIHandler(APIHandler):
                                                 self.persistent_data['last_time_new_tracker_detected'] = now_stamp
                                         
                                                 # move from suspects list to known trackers list
-                                                if 'name' in device:
-                                                    self.persistent_data['known_trackers'][ device['address'] ] = {'name':device['name'], 'first_seen': self.persistent_data['tracker_suspects'][ device['address'] ]['first_seen'], 'last_seen':now_stamp} # stores the first_seen time of known trackers
-                                                else:
-                                                    print("Error, device had no name?")
+                                                self.persistent_data['known_trackers'][ device['address'] ] = {'name':device['name'], 'first_seen': self.persistent_data['tracker_suspects'][ device['address'] ]['first_seen'], 'last_seen':now_stamp} # stores the first_seen time of known trackers
                                                 
                                                 try:
-                                                    #if device['address'] in self.persistent_data['tracker_suspects']:
                                                     del self.persistent_data['tracker_suspects'][ device['address'] ]
                                                 except Exception as ex:
                                                     print("Error while trying to delete tracker from suspects list: " + str(ex))
@@ -660,6 +669,9 @@ class BluetoothpairingAPIHandler(APIHandler):
                                                 if self.DEBUG:
                                                     print("This device is in the suspects list, but hasn't been around for 15 minutes yet.")
                                                     
+                                            
+                                            device['first_seen'] = self.persistent_data['tracker_suspects'][ device['address'] ]['first_seen'] # copy first seen data over from the suspects list, might be nice in the UI
+                                            
                                         else:
                                             if self.DEBUG:
                                                 print("error, tracker had no first_seen timestamp")
@@ -1370,6 +1382,7 @@ def run_command(cmd, timeout_seconds=30):
 
     except Exception as e:
         print("Error running command: "  + str(e))
+        return None
         
         
 def valid_mac(mac):
