@@ -369,6 +369,7 @@
 #extension-bluetoothpairing-list-discovered:not(:empty)::before{
     content:'Discovered';
     width:100%;
+    font-size: 1.5em;
     font-weight:bold;
     text-align:center;
     margin-bottom:2rem;
@@ -377,6 +378,7 @@
 #extension-bluetoothpairing-list-trackers:not(:empty)::before{
     content:'Trackers';
     width:100%;
+    font-size: 1.5em;
     font-weight:bold;
     text-align:center;
     margin-bottom:2rem;
