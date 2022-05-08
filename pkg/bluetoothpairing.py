@@ -129,11 +129,12 @@ class BluetoothpairingAPIHandler(APIHandler):
                     manu_number = str(row[0])
                     #manu_code = row[1].replace("0x","")
                     
-                    self.manufacturers_lookup_table[str(manu_number)] = row[2]
+                    self.manufacturers_lookup_table[manu_number] = row[2]
             
             
         except Exception as ex:
             print("error parsing manufacturers csv: " + str(ex))
+        
         
         
         # Get persistent data
@@ -146,8 +147,6 @@ class BluetoothpairingAPIHandler(APIHandler):
             print("Could not load persistent data (if you just installed the add-on then this is normal)")
             #self.persistent_data = {'connected':[],'power':True,'audio_receiver':False}
 
-        if self.DEBUG:
-            print("persistent data: " + str(self.persistent_data))
 
         if not 'power' in self.persistent_data:
             self.persistent_data['power'] = True
@@ -195,6 +194,9 @@ class BluetoothpairingAPIHandler(APIHandler):
         # Get initial list of connected devices, to update persistent data for other addons.
         #self.paired_devices = self.create_devices_list('paired-devices')
 
+        if self.DEBUG:
+            print("persistent data: " + str(self.persistent_data))
+            #print("self.manufacturers_lookup_table: " + str(self.manufacturers_lookup_table))
 
 
         # Create adapter
@@ -527,11 +529,11 @@ class BluetoothpairingAPIHandler(APIHandler):
                                                 print("manu_number: " + str(manu_number))
                                             #print("self.manufacturers_lookup_table: " + str(self.manufacturers_lookup_table))
                                             #print("self.manufacturers_code_lookup_table[manu]: " + str( self.manufacturers_code_lookup_table[str(manu_number)] ))
-                                            if str(manu_number) in self.manufacturers_lookup_table:
+                                            if str(manu_number) in self.manufacturers_lookup_table.keys():
                                                 
                                                 device['manufacturer'] = self.manufacturers_lookup_table[str(manu_number)]
                                                 if self.DEBUG:
-                                                    print("bingo, spotted manufacturer id. It is: " + str(device['manufacturer']))
+                                                    print("bingo, spotted manufacturer id. It is now: " + str(device['manufacturer']))
                                             
                                             #manu_code = manu_code.upper()
                                             #if self.DEBUG:
@@ -588,10 +590,17 @@ class BluetoothpairingAPIHandler(APIHandler):
                 
                         # Change manufacturer number into manufacturer name
                         if 'manufacturer' in device:
-                            if device['manufacturer'] in self.manufacturers_lookup_table:
-                                device['manufacturer'] = self.manufacturers_lookup_table[device['manufacturer']]
+                            if self.DEBUG:
+                                print("device['manufacturer'] before: " + str(device['manufacturer']))
+                                
+                            if str(device['manufacturer']) in self.manufacturers_lookup_table.keys():
+                                if self.DEBUG:
+                                    print("BINGO2")
+                                device['manufacturer'] = self.manufacturers_lookup_table[ str(device['manufacturer'])]
                 
-                        
+                            if self.DEBUG:
+                                print("device['manufacturer'] after: " + str(device['manufacturer']))
+                            
                         # If continuous scanning is enabled, handle the suspects list
                         if device['type'] == 'tracker' and self.periodic_scanning_interval > 0:
                             
