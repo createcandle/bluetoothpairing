@@ -475,6 +475,8 @@
   	color: #fff;
 	height:auto;
     min-height:100%;
+    max-width:120rem;
+    margin: 0 auto;
 }
 
 
@@ -661,9 +663,9 @@
 		left:9.6rem;
 		top: 0;
 		height:100vh; 
-		position:absolute;
+		/*position:absolute;
 		width: calc(100% - 9.6rem);
-		padding-right:9.6rem;
+		padding-right:9.6rem;*/
 	}
 	
 	#extension-bluetoothpairing-content-container{
