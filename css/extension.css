@@ -260,6 +260,8 @@
 	position: relative;
 	width:100%;
 	text-align:left;
+    max-width: 45rem;
+    margin: 1rem;
 }
 
 
@@ -377,6 +379,7 @@
 
 #extension-bluetoothpairing-list-trackers:not(:empty)::before{
     content:'Trackers';
+    display:block;
     width:100%;
     font-size: 1.5em;
     font-weight:bold;
@@ -658,27 +661,46 @@
 }
 
 
+
+
+@media screen and (max-width: 821px) {
+    .extension-bluetoothpairing-item{
+        max-width:none;
+    }
+}
+
+
 @media screen and (min-width: 1025px) {
 	#extension-bluetoothpairing-view{
+		
+		height:100vh; 
+		/*
 		left:9.6rem;
 		top: 0;
-		height:100vh; 
-		/*position:absolute;
+        position:absolute;
 		width: calc(100% - 9.6rem);
-		padding-right:9.6rem;*/
+		padding-right:9.6rem;
+        */
 	}
-	
+	/*
+    .extension-bluetoothpairing-list{
+        display: grid;
+        grid-template-columns: repeat(auto-fill, 35rem);
+        grid-gap: 2rem;
+    }
+    */
+    
 	#extension-bluetoothpairing-content-container{
 		height:auto;
-		width: calc(100% - 3rem);
+		width: 100%;
+        max-width:120rem;
 	}
-	
+	/*
 	.extension-bluetoothpairing-item{
-		width: calc(50% - 4rem);
-		margin-left: 2rem;
-		margin-right: 2rem;
+		width: 100%;
+		margin: 0;
 	}
-
+    */
 	
 }
 

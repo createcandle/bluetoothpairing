@@ -3,7 +3,7 @@
         constructor() {
             super('bluetoothpairing');
             //console.log("Adding bluetoothpairing addon to menu");
-            this.addMenuEntry('Bluetooth pairing');
+            this.addMenuEntry('Bluetooth');
 
             this.debug = false;
             
