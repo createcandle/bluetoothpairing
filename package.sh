@@ -32,7 +32,8 @@ cd -
 
 # Make the tarball
 echo "creating archive"
-TARFILE="bluetoothpairing-${version}.tgz"
+TARFILE="bluetoothpairing-${version}${TARFILE_SUFFIX}.tgz"
+echo "TARFILE: $TARFILE"
 tar czf ${TARFILE} package
 
 shasum --algorithm 256 ${TARFILE} > ${TARFILE}.sha256sum
