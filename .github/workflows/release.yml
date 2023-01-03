@@ -86,4 +86,4 @@ jobs:
       with:
         #upload_url: ${{ github.event.release.upload_url }}
         upload_url: ${{ env.UPLOAD_URL }}
-        asset_path: bluetoothpairingr-${{ env.RELEASE_VERSION }}-${{ matrix.platform }}-v${{ matrix.version }}.tgz.sha256sum
+        asset_path: bluetoothpairing-${{ env.RELEASE_VERSION }}-${{ matrix.platform }}-v${{ matrix.version }}.tgz.sha256sum
