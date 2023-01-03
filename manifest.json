@@ -41,12 +41,12 @@
         "Periodic scanning interval": {
           "description": "Every couple of minutes this addon will periodically scan for devices and trackers. Some other addons, such as Voco and Internet radio, can use the latest scan results to determine if bluetooth speakers are available. You can select how many minutes should pass between the scans. The default is 5 minutes. Set it to 0 to disable periodic scanning.",
           "enum": [
-			  "0",
+              "0",
               "1",
               "2",
               "3",
               "4",
-			  "5"
+              "5"
           ],
           "type": "string"
         },
