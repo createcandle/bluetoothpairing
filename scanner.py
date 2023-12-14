@@ -88,7 +88,10 @@ def device_found(device: BLEDevice, advertisement_data: AdvertisementData):
                         #print(">> TILE SPOTTED")
                         cleaned['type'] = 'tracker'
                 else:
-                    cleaned[k.lower()] = properties[k]
+                    if type(properties[k]) == str or type(properties[k]) == bool or type(properties[k]) == int:
+                        cleaned[k.lower()] = properties[k]
+                    else:
+                        cleaned[k.lower()] = properties[k].decode('utf8', errors='ignore')
                 
         spotted.append(cleaned)
         
@@ -130,7 +133,10 @@ async def main():
     await scanner.start()
     await asyncio.sleep(duration)
     await scanner.stop()
-    print(str(json.dumps(spotted, indent=4)))
+    if type(spotted) is list or type(spotted) is dict:
+        print(str(json.dumps(spotted, indent=4)))
+    else:
+        print(str(json.dumps(spotted, indent=4)))
     #await asyncio.sleep(5.0)
 
 #print("Starting asyncio thread")
