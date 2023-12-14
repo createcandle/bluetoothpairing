@@ -135,8 +135,8 @@ def device_found(device: BLEDevice, advertisement_data: AdvertisementData):
 
 async def main():
     """Scan for devices."""
-    scanner = BleakScanner()
-    scanner.register_detection_callback(device_found)
+    scanner = BleakScanner(detection_callback=device_found)
+    #scanner.register_detection_callback(device_found)
 
     #while True:
 #    print("boop")
