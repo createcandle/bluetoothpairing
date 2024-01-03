@@ -9,8 +9,11 @@ from construct import Array, Byte, Const, Int8sl, Int16ub, Struct
 from construct.core import ConstError
 
 from bleak import BleakScanner
+#from bleak.assigned_numbers import AdvertisementDataType
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
+from bleak.backends.bluezdbus.advertisement_monitor import OrPattern
+from bleak.backends.bluezdbus.scanner import BlueZScannerArgs, BlueZDiscoveryFilters
 
 #print("import complete")
 ibeacon_format = Struct(
@@ -135,7 +138,18 @@ def device_found(device: BLEDevice, advertisement_data: AdvertisementData):
 
 async def main():
     """Scan for devices."""
-    scanner = BleakScanner(detection_callback=device_found)
+    
+    #or_patterns = [
+    #    OrPattern(0, AdvertisementDataType.FLAGS, b"\x06"),
+    #]
+    args = BlueZScannerArgs(
+        #or_patterns=[OrPattern(0, AdvertisementDataType.MANUFACTURER_SPECIFIC_DATA, b"")]
+        #or_patterns=[OrPattern(0, AdvertisementDataType.MANUFACTURER_SPECIFIC_DATA, b"")]
+        or_patterns=[OrPattern(0, AdvertisementDataType.FLAGS, b"\x06")],
+    )
+    
+    
+    scanner = BleakScanner(bluez=args,detection_callback=device_found,scanning_mode="passive")
     #scanner.register_detection_callback(device_found)
 
     #while True:

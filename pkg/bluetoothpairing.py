@@ -60,6 +60,8 @@ class BluetoothpairingAPIHandler(APIHandler):
         self.running = True
         self.persistent_data = {'connected':[],'power':True,'audio_receiver':False}
         
+
+        self.blues_version = int(run_command('bluetoothctl --version | cut -d "." -f2'))
         
         # Device scanning
         self.do_device_scan = True
@@ -466,8 +468,10 @@ class BluetoothpairingAPIHandler(APIHandler):
             
             # Part 1, using the information from BluetoothCTL to gat an initial list of paired and connected devices.
             
-            result = self.bluetoothctl('paired-devices', True) # ask to be returned an array
-        
+            if self.blues_version < 60:
+                result = self.bluetoothctl('paired-devices', True) # ask to be returned an array
+            else:
+                esult = self.bluetoothctl('devices Paired', True) # ask to be returned an array
             for line in result:
                 try:
                     if 'Device' in line:
@@ -838,7 +842,6 @@ class BluetoothpairingAPIHandler(APIHandler):
                         self.set_power(True)
                         self.bluetoothctl('agent on')
                         self.set_discoverable(True)
-                        #self.paired_devices = self.create_devices_list('paired-devices')
                         
                         self.scan_duration = 18
                         
@@ -853,20 +856,21 @@ class BluetoothpairingAPIHandler(APIHandler):
                             content=json.dumps({'state':state, 'scanning':self.scanning, 'debug':self.DEBUG}),
                         )
                         
+                        
                     elif request.path == '/poll':
                         if self.DEBUG:
                             print("/poll - returning found bluetooth devices")
                             
-                        # optionallt refresh list of paired devices
+                        # optionally refresh list of paired devices
                         if self.scanning == False:
                             try:
                                 get_paired = bool(request.body['get_paired']) # used to refresh the paired devices list
                                 if self.DEBUG:
                                     print("get_paired: " + str(get_paired))
-                                if request.path == '/init' or get_paired == True:
-                                    if self.DEBUG:
-                                        print("-updating list of paired devices")
-                                    #self.paired_devices = self.create_devices_list('paired-devices')
+                                #if request.path == '/init' or get_paired == True:
+                                #    if self.DEBUG:
+                                #        print("-updating list of paired devices")
+                                #    #self.paired_devices = self.create_devices_list('paired-devices')
                                 
                                 self.create_devices_list()
                                     
@@ -904,7 +908,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                             
                             if self.DEBUG:
                                 print("update action: " + str(action))
-                            
+                                print("target mac: " + str(mac))
                             
                             if self.made_agent == False: 
                                 self.made_agent = True
