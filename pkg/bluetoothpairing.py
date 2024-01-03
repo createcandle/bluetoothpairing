@@ -471,97 +471,99 @@ class BluetoothpairingAPIHandler(APIHandler):
             if self.blues_version < 60:
                 result = self.bluetoothctl('paired-devices', True) # ask to be returned an array
             else:
-                esult = self.bluetoothctl('devices Paired', True) # ask to be returned an array
-            for line in result:
-                try:
-                    if 'Device' in line:
-                        line2 = line.split('Device ')[1]
-                        if self.DEBUG:
-                            print("line2: " + str(line2))
+                result = self.bluetoothctl('devices Paired', True) # ask to be returned an array
+            
+            if result:
+                for line in result:
+                    try:
+                        if 'Device' in line:
+                            line2 = line.split('Device ')[1]
+                            if self.DEBUG:
+                                print("line2: " + str(line2))
                 
-                        device = {'suspiciousness':'safe', 'last_seen':now_stamp}
+                            device = {'suspiciousness':'safe', 'last_seen':now_stamp}
                 
-                        parts = line2.split(" ", 1)
-                        if self.DEBUG:
-                            print("LINE PARTS: " + str(parts))
+                            parts = line2.split(" ", 1)
+                            if self.DEBUG:
+                                print("LINE PARTS: " + str(parts))
                     
-                        if valid_mac(parts[0]):
-                            device['address'] = parts[0]
-                            device['name'] = parts[1]
+                            if valid_mac(parts[0]):
+                                device['address'] = parts[0]
+                                device['name'] = parts[1]
                         
-                            device['paired'] = False
-                            device['trusted'] = False
-                            device['connected'] = False
+                                device['paired'] = False
+                                device['trusted'] = False
+                                device['connected'] = False
                         
-                            info_test = self.bluetoothctl('info ' + device['address'])
+                                info_test = self.bluetoothctl('info ' + device['address'])
                         
-                            device['info'] = info_test
+                                device['info'] = info_test
                         
-                            for line in info_test:
+                                for line in info_test:
                             
-                                #if self.DEBUG:
-                                #    print("- info test line: " + str(line))
-                                if 'Icon: audio-card' in line:
-                                     device['type'] = 'audio-card'
-                                     if self.DEBUG:
-                                         print("device is speaker")
+                                    #if self.DEBUG:
+                                    #    print("- info test line: " + str(line))
+                                    if 'Icon: audio-card' in line:
+                                         device['type'] = 'audio-card'
+                                         if self.DEBUG:
+                                             print("device is speaker")
                                          
-                                if 'Paired: yes' in line:
-                                    device['paired'] = True
-                                    if self.DEBUG:
-                                        print("device is paired")
+                                    if 'Paired: yes' in line:
+                                        device['paired'] = True
+                                        if self.DEBUG:
+                                            print("device is paired")
                                         
-                                if 'Trusted: yes' in line:
-                                    device['trusted'] = True
-                                    if self.DEBUG:
-                                        print("device is trusted")
+                                    if 'Trusted: yes' in line:
+                                        device['trusted'] = True
+                                        if self.DEBUG:
+                                            print("device is trusted")
                                         
-                                if 'Connected: yes' in line:
-                                    device['connected'] = True
-                                    if self.DEBUG:
-                                        print("device is connected")
+                                    if 'Connected: yes' in line:
+                                        device['connected'] = True
+                                        if self.DEBUG:
+                                            print("device is connected")
                                         
-                                if 'ManufacturerData Key:' in line:
-                                    try:
-                                        line = line.replace('\n','')
-                                        manu_code = str(line[-4:])
+                                    if 'ManufacturerData Key:' in line:
+                                        try:
+                                            line = line.replace('\n','')
+                                            manu_code = str(line[-4:])
                                     
 
-                                        if manu_code != None:
-                                            manu_number = int('0x' + manu_code, 16)
-                                            if self.DEBUG:
-                                                print("manu_number: " + str(manu_number))
-                                            #print("self.manufacturers_lookup_table: " + str(self.manufacturers_lookup_table))
-                                            #print("self.manufacturers_code_lookup_table[manu]: " + str( self.manufacturers_code_lookup_table[str(manu_number)] ))
-                                            if str(manu_number) in self.manufacturers_lookup_table.keys():
+                                            if manu_code != None:
+                                                manu_number = int('0x' + manu_code, 16)
+                                                if self.DEBUG:
+                                                    print("manu_number: " + str(manu_number))
+                                                #print("self.manufacturers_lookup_table: " + str(self.manufacturers_lookup_table))
+                                                #print("self.manufacturers_code_lookup_table[manu]: " + str( self.manufacturers_code_lookup_table[str(manu_number)] ))
+                                                if str(manu_number) in self.manufacturers_lookup_table.keys():
                                                 
-                                                device['manufacturer'] = self.manufacturers_lookup_table[str(manu_number)]
-                                                if self.DEBUG:
-                                                    print("bingo, spotted manufacturer id. It is now: " + str(device['manufacturer']))
+                                                    device['manufacturer'] = self.manufacturers_lookup_table[str(manu_number)]
+                                                    if self.DEBUG:
+                                                        print("bingo, spotted manufacturer id. It is now: " + str(device['manufacturer']))
                                             
-                                            #manu_code = manu_code.upper()
-                                            #if self.DEBUG:
-                                            #    print("manu code: -" + str(manu_code) + "-")
-                                            #if manu_code in self.manufacturers_code_lookup_table:
-                                            #    device['manufacturer'] = self.manufacturers_code_lookup_table[manu_code]
-                                            else:
-                                                if self.DEBUG:
-                                                    print("manufacturer number not found in lookup table: " + str(manu_number))
-                                    except Exception as ex:
-                                        print("error parsing manufacturer code: " + str(ex))
+                                                #manu_code = manu_code.upper()
+                                                #if self.DEBUG:
+                                                #    print("manu code: -" + str(manu_code) + "-")
+                                                #if manu_code in self.manufacturers_code_lookup_table:
+                                                #    device['manufacturer'] = self.manufacturers_code_lookup_table[manu_code]
+                                                else:
+                                                    if self.DEBUG:
+                                                        print("manufacturer number not found in lookup table: " + str(manu_number))
+                                        except Exception as ex:
+                                            print("error parsing manufacturer code: " + str(ex))
                                 
                             
-                            if device['paired']:
-                                paired_devices.append(device)
+                                if device['paired']:
+                                    paired_devices.append(device)
                                 
-                            if device['connected']:
-                                connected_devices.append(device)
+                                if device['connected']:
+                                    connected_devices.append(device)
                             
-                            devices.append(device)    
+                                devices.append(device)    
             
             
-                except Exception as ex:
-                    print("Error parsing bluetoothCTL scan result" + str(ex))
+                    except Exception as ex:
+                        print("Error parsing bluetoothCTL scan result" + str(ex))
             
             self.persistent_data['connected'] = connected_devices
             self.paired_devices = paired_devices # TODO self.paired_devices is not used anymore
