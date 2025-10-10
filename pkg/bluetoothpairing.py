@@ -26,10 +26,10 @@ class BluetoothpairingAPIHandler(APIHandler):
     def __init__(self, verbose=False):
         """Initialize the object."""
         #print("INSIDE API HANDLER INIT")
-        
+        self.ready = False
         self.DEBUG = False
         
-        self.addon_name = 'bluetoothpairing' # overwritteb by data in manifest
+        self.addon_name = 'bluetoothpairing' # overwritten by data in manifest
         
         
         # Intiate extension addon API handler
