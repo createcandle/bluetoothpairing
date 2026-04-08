@@ -1,7 +1,14 @@
 <div id="extension-bluetoothpairing-content">
   
     <div id="extension-bluetoothpairing-content-container">
-        <h3 id="extension-bluetoothpairing-title">Bluetooth pairing</h3>
+        <h3 id="extension-bluetoothpairing-title">Bluetooth</h3>
+
+		<div id="extension-bluetoothpairing-do-not-scan-until" class="extension-bluetoothpairing-area extension-bluetoothpairing-hidden">
+			<h3>Scanning is temporarily disabled</h3>
+			<p>A request was made to not perform any scans for 5 minutes. The Matter addon can do this, for example, to avoid any interference with the device pairing process.</p>
+			<p id="extension-bluetoothpairing-do-not-scan-until-remaining"></p>
+			<button id="extension-bluetoothpairing-re-enable-button" class="text-button">Re-enable now</button>
+		</div>
 
         <div id="extension-bluetoothpairing-scanning-container">
             <div id="extension-bluetoothpairing-scanning-centered">

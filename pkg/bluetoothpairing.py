@@ -18,6 +18,7 @@ except:
     print("Import APIHandler and APIResponse from gateway_addon failed. Use at least WebThings Gateway version 0.10")
     sys.exit(1)
 
+from .bluetoothpairing_util import get_manufacturer
 
 
 class BluetoothpairingAPIHandler(APIHandler):
@@ -26,10 +27,10 @@ class BluetoothpairingAPIHandler(APIHandler):
     def __init__(self, verbose=False):
         """Initialize the object."""
         #print("INSIDE API HANDLER INIT")
-        self.ready = False
+        
         self.DEBUG = False
         
-        self.addon_name = 'bluetoothpairing' # overwritten by data in manifest
+        self.addon_name = 'bluetoothpairing' # overwritteb by data in manifest
         
         
         # Intiate extension addon API handler
@@ -56,7 +57,7 @@ class BluetoothpairingAPIHandler(APIHandler):
             print("Failed to init UX extension API handler: " + str(e))
         
         
-        
+        self.ready = False
         self.running = True
         self.persistent_data = {'connected':[],'power':True,'audio_receiver':False}
         
@@ -69,6 +70,7 @@ class BluetoothpairingAPIHandler(APIHandler):
         self.scanning_start_time = 0
         self.periodic_scanning_duration = 1
         self.periodic_scanning_interval = 1
+        self.do_not_scan_until = 0 # temporarily disabled periodic scanning, for example to not interfere with Matter device pairing
         self.scan_duration = 2 # in reality, with all the sleep cooldowns, it takes longer than the value of this variable
         self.made_agent = False
         self.busy_creating_devices_list = False
@@ -139,6 +141,8 @@ class BluetoothpairingAPIHandler(APIHandler):
         
         
         
+        
+        
         # Get persistent data
         try:
             with open(self.persistence_file_path) as f:
@@ -153,6 +157,9 @@ class BluetoothpairingAPIHandler(APIHandler):
         if not 'power' in self.persistent_data:
             self.persistent_data['power'] = True
         
+        if not 'periodic_scanning' in self.persistent_data:
+            self.persistent_data['periodic_scanning'] = True
+            
         if not 'audio_receiver' in self.persistent_data:
             self.persistent_data['audio_receiver'] = False        
         
@@ -164,6 +171,9 @@ class BluetoothpairingAPIHandler(APIHandler):
         
         if not 'previous_tracker_count' in self.persistent_data:
             self.persistent_data['previous_tracker_count'] = 0
+
+
+            
 
         #if not 'previous_airtag_count' in self.persistent_data:
         #    self.persistent_data['previous_airtag_count'] = 0
@@ -215,7 +225,6 @@ class BluetoothpairingAPIHandler(APIHandler):
         self.set_power(self.persistent_data['power'])
         self.set_audio_receiver(self.persistent_data['audio_receiver'])
 
-
         # Reconnect to previously connected devices.
         try:
             for previously_connected_device in self.persistent_data['connected']:
@@ -225,7 +234,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                     self.bluetoothctl('connect ' + str(previously_connected_device['address']) )
                     time.sleep(3)
         except Exception as ex:
-            print("Error reconnecting to bluetooth devices: " + str(ex))
+            print("caught error reconnecting to bluetooth devices: " + str(ex))
 
         # Start clock thread
         self.running = True
@@ -242,7 +251,7 @@ class BluetoothpairingAPIHandler(APIHandler):
             t.start()
                 
         except Exception as ex:
-            print("Error starting the clock thread: " + str(ex))
+            print("caught error starting the clock thread: " + str(ex))
         
         self.ready = True
         
@@ -292,6 +301,11 @@ class BluetoothpairingAPIHandler(APIHandler):
             if self.DEBUG:
                 print("-Airtag certainty duration preference was in config: " + str(self.suspiciousness_duration))
         
+        #if 'Do not scan when the addon starts' in config:
+        #    self.do_device_scan = not bool(config['Do not scan when the addon starts'])
+        #    if self.DEBUG:
+        #        print("-Do not scan when the addon starts preference was in config: " + str(self.do_device_scan))
+                
         if 'Show tracker pop-up' in config:
             self.show_tracker_popup = bool(config['Show tracker pop-up'])
             if self.DEBUG:
@@ -313,42 +327,6 @@ class BluetoothpairingAPIHandler(APIHandler):
         clock_loop_counter = 0
         while self.running:
             try:
-                if self.do_device_scan:
-                    if self.DEBUG:
-                        print("clock: starting scan. Duration: " + str(self.scan_duration))
-                        
-                    self.do_device_scan = False
-                    self.scanning = True
-                    self.scanning_start_time = time.time()
-                    clock_loop_counter = 0
-                
-                    try:
-                    
-                        time.sleep(2) # make sure other commands have finished
-                    
-                        if self.running:
-                            #scan_output = self.bluetoothctl('--timeout ' + str(self.scan_duration) + ' scan on>/dev/null')
-                            subprocess.Popen(["sudo","bluetoothctl","--timeout",str(self.scan_duration),"scan","on"],stdout=subprocess.PIPE) # running this alongside the Bleak scan helps it detect non-BLE devices too.
-                            scan_output = run_command("sudo python3 " + str(self.scanner_path) + ' ' + str(self.scan_duration))
-                            if self.DEBUG:
-                                print("scan output: \n" + str(scan_output))
-                            try:
-                                self.scan_result = json.loads(scan_output)
-                            
-                                self.create_devices_list()
-                            except Exception as ex:
-                                print("error calling/parsing scanner: " + str(ex))
-                        
-                        
-                    except Exception as ex:
-                        print("clock: scan error: " + str(ex))
-                    
-                    
-                    self.scan_duration = self.periodic_scanning_duration # reset scan duration to the periodic one, in case this was a user-initiated scan
-                    self.scanning = False
-                    if self.DEBUG:
-                        print("clock: scan complete")
-                    
                 
                 # Discoverable countdown
                 if self.discoverable_countdown > 0:
@@ -356,94 +334,137 @@ class BluetoothpairingAPIHandler(APIHandler):
                         self.set_discoverable(False)
                     self.discoverable_countdown -= 1
                     
-                    
-                # Periodic scanning timer
-                if self.periodic_scanning_interval > 0:
-                    clock_loop_counter += 1
-                
-                    # Every X minutes check if connected devices are still connected, or if trusted paired devices have reconnected themselves, or if trackers are present
-                    if clock_loop_counter > self.periodic_scanning_interval * 60:
-                        clock_loop_counter = 0
-                        self.do_device_scan = True
-                            
-                
-                    # Updating tracker detected state on thing
-                    if clock_loop_counter % 6 == 0:
-                        try:
-                            current_time = time.time()
-                            
-                            # Toggle the "recent new tracker" switch on the thing
-                            recent_new_tracker_detected = False
-                            if current_time - self.persistent_data['last_time_new_tracker_detected'] < 300:
-                                recent_new_tracker_detected = True
-                                
-                            if recent_new_tracker_detected != self.recent_new_tracker:
-                                self.recent_new_tracker = recent_new_tracker_detected 
-                                self.adapter.set_recent_tracker_on_thing(recent_new_tracker_detected)
-                        
-                        
-                            if self.DEBUG:
-                                print("__checking known trackers. Length: " + str(len(self.persistent_data['known_trackers'])))
-                                
-                            recently_spotted_known_trackers_count = 0
-                            for tracker_mac in self.persistent_data['known_trackers']:
-                                #if self.DEBUG:
-                                #    print("known_trackers mac: " + str(tracker_mac))
-                                    
-                                # Get timestamps for tracker
-                                last_time_spotted = self.persistent_data['known_trackers'][tracker_mac]['last_seen']
-                                first_time_spotted = self.persistent_data['known_trackers'][tracker_mac]['first_seen']
-                                #if self.DEBUG:
-                                #    print("- known tracker first time spotted: " + str(first_time_spotted))
-                                #    print("- known tracker last time spotted: " + str(last_time_spotted))
-                                    
-                                # count how many known trackers were detected in the last 15 minutes. This helps ignore passers by, and helps accumulate data from multiple separate scans that may have occured in the last 15 minutes.
-                                if current_time - last_time_spotted < self.suspiciousness_duration:
-                                    recently_spotted_known_trackers_count += 1
-                            
-                                # trackers that were spotted long ago may be forgotten? Just in case someone living in a high-traffic areas is swamped with trackers that linger for 15 minutes (living above a store?).
-                                if len(self.persistent_data['known_trackers']) > 100:
-                                    if current_time - first_time_spotted > 604800: # a week
-                                        del self.persistent_data['known_trackers'][tracker_mac]
-                        
-                            if self.DEBUG:
-                                print("recently_spotted_known_trackers_count: " + str(recently_spotted_known_trackers_count))
-                            if recently_spotted_known_trackers_count != self.persistent_data['previous_tracker_count']:
-                                self.adapter.set_trackers_on_thing(recently_spotted_known_trackers_count)
-                                if self.DEBUG:
-                                    print("number of detected known trackers changed to: " + str(recently_spotted_known_trackers_count))
-                            self.persistent_data['previous_tracker_count'] = recently_spotted_known_trackers_count
-                            
-                        except Exception as ex:
-                            print("clock: error while looping over known trackers: " + str(ex))
-                        
-                        
-
-
-                # Keep connected speakers awake
-                speaker_keep_alive_counter += 1
-                if speaker_keep_alive_counter > 26:
-                    speaker_keep_alive_counter = 0
-                    
-                    if 'omxplayer -o alsa:bluealsa' in run_command('ps aux | grep omxplayer'):
-                        if self.DEBUG:   
-                            print("omxplayer seems to already be streaming music to a bluetooth speaker")
-                    else:
+                if time.time() > self.do_not_scan_until:
+                    if self.do_device_scan:
                         if self.DEBUG:
-                            print("clock: starting attempt to keep connected speakers awake")
+                            print("clock: starting scan. Duration: " + str(self.scan_duration))
+                        
+                        self.do_device_scan = False
+                        self.scanning = True
+                        self.scanning_start_time = time.time()
+                        clock_loop_counter = 0
+                
+                        try:
+                    
+                            time.sleep(2) # make sure other commands have finished
+                    
+                            if self.running:
+                                #scan_output = self.bluetoothctl('--timeout ' + str(self.scan_duration) + ' scan on>/dev/null')
+                                subprocess.Popen(["sudo","bluetoothctl","--timeout",str(self.scan_duration),"scan","on"],stdout=subprocess.PIPE) # running this alongside the Bleak scan helps it detect non-BLE devices too.
+                                scan_output = run_command("sudo python3 " + str(self.scanner_path) + ' ' + str(self.scan_duration))
+                                if self.DEBUG:
+                                    print("scan output: \n" + str(scan_output))
+                                try:
+                                    self.scan_result = json.loads(scan_output)
+                            
+                                    self.create_devices_list()
+                                except Exception as ex:
+                                    if self.DEBUG:
+                                        print("caught error calling/parsing scanner: " + str(ex))
+                        
+                        
+                        except Exception as ex:
+                            if self.DEBUG:
+                                print("clock: caught scan error: " + str(ex))
+                    
+                    
+                        self.scan_duration = self.periodic_scanning_duration # reset scan duration to the periodic one, in case this was a user-initiated scan
+                        self.scanning = False
+                        if self.DEBUG:
+                            print("clock: scan complete")
+                    
+                
+                
+                    
+                    
+                    # Periodic scanning timer
+                    if self.periodic_scanning_interval > 0 and self.persistent_data['periodic_scanning'] == True:
+                        clock_loop_counter += 1
+                
+                        # Every X minutes check if connected devices are still connected, or if trusted paired devices have reconnected themselves, or if trackers are present
+                        if clock_loop_counter > self.periodic_scanning_interval * 60:
+                            clock_loop_counter = 0
+                            self.do_device_scan = True
+                            
+                
+                        # Updating tracker detected state on thing
+                        if clock_loop_counter % 6 == 0:
+                            try:
+                                current_time = time.time()
+                            
+                                # Toggle the "recent new tracker" switch on the thing
+                                recent_new_tracker_detected = False
+                                if current_time - self.persistent_data['last_time_new_tracker_detected'] < 300:
+                                    recent_new_tracker_detected = True
+                                
+                                if recent_new_tracker_detected != self.recent_new_tracker:
+                                    self.recent_new_tracker = recent_new_tracker_detected 
+                                    self.adapter.set_recent_tracker_on_thing(recent_new_tracker_detected)
+                        
+                        
+                                if self.DEBUG:
+                                    print("__checking known trackers. Length: " + str(len(self.persistent_data['known_trackers'])))
+                                
+                                recently_spotted_known_trackers_count = 0
+                                for tracker_mac in self.persistent_data['known_trackers']:
+                                    #if self.DEBUG:
+                                    #    print("known_trackers mac: " + str(tracker_mac))
+                                    
+                                    # Get timestamps for tracker
+                                    last_time_spotted = self.persistent_data['known_trackers'][tracker_mac]['last_seen']
+                                    first_time_spotted = self.persistent_data['known_trackers'][tracker_mac]['first_seen']
+                                    #if self.DEBUG:
+                                    #    print("- known tracker first time spotted: " + str(first_time_spotted))
+                                    #    print("- known tracker last time spotted: " + str(last_time_spotted))
+                                    
+                                    # count how many known trackers were detected in the last 15 minutes. This helps ignore passers by, and helps accumulate data from multiple separate scans that may have occured in the last 15 minutes.
+                                    if current_time - last_time_spotted < self.suspiciousness_duration:
+                                        recently_spotted_known_trackers_count += 1
+                            
+                                    # trackers that were spotted long ago may be forgotten? Just in case someone living in a high-traffic areas is swamped with trackers that linger for 15 minutes (living above a store?).
+                                    if len(self.persistent_data['known_trackers']) > 100:
+                                        if current_time - first_time_spotted > 604800: # a week
+                                            del self.persistent_data['known_trackers'][tracker_mac]
+                        
+                                if self.DEBUG:
+                                    print("recently_spotted_known_trackers_count: " + str(recently_spotted_known_trackers_count))
+                                if recently_spotted_known_trackers_count != self.persistent_data['previous_tracker_count']:
+                                    self.adapter.set_trackers_on_thing(recently_spotted_known_trackers_count)
+                                    if self.DEBUG:
+                                        print("number of detected known trackers changed to: " + str(recently_spotted_known_trackers_count))
+                                self.persistent_data['previous_tracker_count'] = recently_spotted_known_trackers_count
+                            
+                            except Exception as ex:
+                                print("clock: error while looping over known trackers: " + str(ex))
+                        
+                        
+
+
+                    # Keep connected speakers awake
+                    speaker_keep_alive_counter += 1
+                    if speaker_keep_alive_counter > 26:
+                        speaker_keep_alive_counter = 0
+                    
+                        if self.DEBUG:
+                            print("clock: starting periodic attempt to keep connected speakers awake")
                         # Play silence.wav to connected speakers
                         for previously_connected_device in self.persistent_data['connected']:
                             if 'type' in previously_connected_device and 'address' in previously_connected_device:
                                 if previously_connected_device['type'] == 'audio-card':
                                     if self.DEBUG:
                                         print(" keeping speaker awake: " + str(previously_connected_device))
-                                    try:
-                                        os.system('aplay  -D bluealsa:DEV=' + previously_connected_device['address'] + ' ' + self.silence_file_path)
-                                    except Exception as ex:
-                                        print("error while keeping speaker alive: " + str(ex))
-
+                                    #try:
+                                    #    os.system('aplay  -D bluealsa:DEV=' + previously_connected_device['address'] + ' ' + self.silence_file_path)
+                                    #except Exception as ex:
+                                    #    print("error while keeping speaker alive: " + str(ex))
+                                    
+                else:
+                    if self.DEBUG:
+                        print("scanning is temporarily blocked")
+                        
             except Exception as ex:
-                print("Bluetooth Pairing clock error: " + str(ex))
+                if self.DEBUG:
+                    print("caught clock error: " + str(ex))
 
             time.sleep(1)
 
@@ -527,8 +548,13 @@ class BluetoothpairingAPIHandler(APIHandler):
                                         try:
                                             line = line.replace('\n','')
                                             manu_code = str(line[-4:])
-                                    
-
+                                            manufacturer = get_manufacturer(manu_code)
+                                            if self.DEBUG:
+                                                print("manufacturer: ", manufacturer)
+                                            if isinstance(manufacturer,str):
+                                                device['manufacturer'] = manufacturer
+                                            
+                                            """
                                             if manu_code != None:
                                                 manu_number = int('0x' + manu_code, 16)
                                                 if self.DEBUG:
@@ -549,6 +575,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                                                 else:
                                                     if self.DEBUG:
                                                         print("manufacturer number not found in lookup table: " + str(manu_number))
+                                            """
                                         except Exception as ex:
                                             print("error parsing manufacturer code: " + str(ex))
                                 
@@ -563,7 +590,7 @@ class BluetoothpairingAPIHandler(APIHandler):
             
             
                     except Exception as ex:
-                        print("Error parsing bluetoothCTL scan result" + str(ex))
+                        print("caught error parsing bluetoothCTL scan result" + str(ex))
             
             self.persistent_data['connected'] = connected_devices
             self.paired_devices = paired_devices # TODO self.paired_devices is not used anymore
@@ -600,10 +627,9 @@ class BluetoothpairingAPIHandler(APIHandler):
                                 print("device['manufacturer'] before: " + str(device['manufacturer']))
                                 
                             if str(device['manufacturer']) in self.manufacturers_lookup_table.keys():
-                                if self.DEBUG:
-                                    print("BINGO2")
                                 device['manufacturer'] = self.manufacturers_lookup_table[ str(device['manufacturer'])]
-                
+                                if self.DEBUG:
+                                    print("got manufacturer name from lookup table: ", device['manufacturer'])
                             if self.DEBUG:
                                 print("device['manufacturer'] after: " + str(device['manufacturer']))
                             
@@ -673,7 +699,8 @@ class BluetoothpairingAPIHandler(APIHandler):
                                                 try:
                                                     del self.persistent_data['tracker_suspects'][ device['address'] ]
                                                 except Exception as ex:
-                                                    print("Error while trying to delete tracker from suspects list: " + str(ex))
+                                                    if self.DEBUG:
+                                                        print("caught error while trying to delete tracker from suspects list: " + str(ex))
                                         
                                                 if device['name'] == 'Airtag':
                                                     dubious_airtag_count += 1
@@ -689,17 +716,19 @@ class BluetoothpairingAPIHandler(APIHandler):
                                             
                                         else:
                                             if self.DEBUG:
-                                                print("error, tracker had no first_seen timestamp")
+                                                print("caught error, tracker had no first_seen timestamp")
                                             
                                         
                                             
                                     except Exception as ex:
-                                        print('Error while parsing tracker in limbo: ' + str(ex))
+                                        if self.DEBUG:
+                                            print('caught error while parsing tracker in limbo: ' + str(ex))
                                         
                                 
                                     
                             except Exception as ex:
-                                print('Error while parsing tracker: ' + str(ex))
+                                if self.DEBUG:
+                                    print('caught error while parsing tracker: ' + str(ex))
                                     
                             trackers.append(device)
 
@@ -734,7 +763,8 @@ class BluetoothpairingAPIHandler(APIHandler):
                                 print("removed an Airtag from the suspect list")
                                 
                 except Exception as ex:
-                    print('Error while pruning airtag suspects: ' + str(ex))
+                    if self.DEBUG:
+                        print('caught error while pruning airtag suspects: ' + str(ex))
             
             if self.DEBUG:
                 print("\n\n----------------------------------------devices: " + str(devices))
@@ -744,7 +774,8 @@ class BluetoothpairingAPIHandler(APIHandler):
             self.save_persistent_data()
             
         except Exception as ex:
-            print('Error while parsing scan result: ' + str(ex))
+            if self.DEBUG:
+                print('caught error while parsing scan result: ' + str(ex))
                 
         self.busy_creating_devices_list = False
 
@@ -768,6 +799,16 @@ class BluetoothpairingAPIHandler(APIHandler):
         
         self.persistent_data['power'] = state
         self.save_persistent_data()
+
+
+    def set_periodic_scanning(self,state):
+        if self.DEBUG:
+            print("in set_periodic_scanning.  state: ", state)
+        if self.persistent_data['periodic_scanning'] != bool(state):
+            if self.DEBUG:
+                print("set_periodic_scanning.  changing state to: ", state)
+            self.persistent_data['periodic_scanning'] = bool(state)
+            self.save_persistent_data()
 
 
     def set_audio_receiver(self,state):
@@ -829,33 +870,64 @@ class BluetoothpairingAPIHandler(APIHandler):
             if request.method != 'POST':
                 return APIResponse(status=404)
             
-            if request.path == '/update' or request.path == '/scan' or request.path == '/poll':
+            if request.path == '/ajax' or request.path == '/scan' or request.path == '/poll' or request.path == '/update':
 
                 try:
                     
+                    if request.path == '/ajax':
+                        if self.DEBUG:
+                            print("/ajax request")
+                        if 'action' in request.body:
+                            action = str(request.body['action'])
+                            
+                            if action == 'shh':
+                                if self.DEBUG:
+                                    print("periodic scan temporarily disabled for 5 minutes")
+                                self.do_not_scan_until = int(time.time()) + 300
+                           
+                            elif action == 'un-shh':
+                                if self.DEBUG:
+                                    print("scanning has been re-enabled early by the user")
+                                self.do_not_scan_until = 0
                     
-                    if request.path == '/scan':
+                    elif request.path == '/scan':
                         if self.DEBUG:
                             print("/scan - initiating scan")
-                        state = 'ok'
+                        state = False
                         
-                        run_command('rfkill unblock bluetooth')
+                        try:
+                            run_command('rfkill unblock bluetooth')
                         
-                        self.set_power(True)
-                        self.bluetoothctl('agent on')
-                        self.set_discoverable(True)
+                            self.set_power(True)
+                            self.bluetoothctl('agent on')
+                            self.set_discoverable(True)
+                            
+                            self.scan_duration = 18
                         
-                        self.scan_duration = 18
+                            do_not_scan_seconds_remaining = 0
+                            if int(time.time()) < self.do_not_scan_until:
+                                do_not_scan_seconds_remaining = self.do_not_scan_until - int(time.time())
                         
-                        if self.scanning == False:
-                            self.scanning_start_time = time.time()
-                            self.scanning = True
-                            self.do_device_scan = True
+                            if self.scanning == False:
+                                self.scanning_start_time = time.time()
+                                self.scanning = True
+                                self.do_device_scan = True
+                                
+                            state = True
+                            
+                        except Exception as ex:
+                            if self.DEBUG:
+                                print("caught error handling request to /scan: ", ex)
+                        
                             
                         return APIResponse(
                             status=200,
                             content_type='application/json',
-                            content=json.dumps({'state':state, 'scanning':self.scanning, 'debug':self.DEBUG}),
+                            content=json.dumps({
+                                    'state':state, 
+                                    'scanning':self.scanning, 
+                                    'do_not_scan_seconds_remaining':do_not_scan_seconds_remaining,
+                                    'debug':self.DEBUG}),
                         )
                         
                         
@@ -877,7 +949,12 @@ class BluetoothpairingAPIHandler(APIHandler):
                                 self.create_devices_list()
                                     
                             except Exception as ex:
-                                print("Error with get_paired in poll request: " + str(ex))
+                                if self.DEBUG:
+                                    print("caught error with get_paired in /poll request: " + str(ex))
+                        
+                        do_not_scan_seconds_remaining = 0
+                        if int(time.time()) < self.do_not_scan_until:
+                            do_not_scan_seconds_remaining = self.do_not_scan_until - int(time.time())
                         
                         # calculate scan progress percentage
                         scan_progress = time.time() - self.scanning_start_time 
@@ -893,7 +970,14 @@ class BluetoothpairingAPIHandler(APIHandler):
                         return APIResponse(
                             status=200,
                             content_type='application/json',
-                            content=json.dumps({'state':'ok', 'scanning':self.scanning, 'scan_progress':scan_progress, 'all_devices':self.all_devices}),
+                            content=json.dumps({
+                                    'state':True, 
+                                    'scanning':self.scanning, 
+                                    'scan_progress':scan_progress, 
+                                    'do_not_scan_untl_remaining':do_not_scan_seconds_remaining,
+                                    'discoverable_countdown':self.discoverable_countdown,
+                                    'all_devices':self.all_devices,
+                                    'debug':self.DEBUG}),
                         )
                             
                             
@@ -1026,7 +1110,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                         
                         
                 except Exception as ex:
-                    print("API handler issue: " + str(ex))
+                    print("caught API handler error: " + str(ex))
                     return APIResponse(
                         status=500,
                         content_type='application/json',
@@ -1251,6 +1335,16 @@ class BluetoothpairingDevice(Device):
                             },
                             bool(self.adapter.api_handler.persistent_data['power']))
 
+        self.properties["periodic_scanning"] = BluetoothpairingProperty(
+                            self,
+                            "periodic_scanning",
+                            {
+                                'title': "Periodic scanning",
+                                'type': 'boolean',
+                                'readOnly': False,
+                            },
+                            bool(self.adapter.api_handler.persistent_data['periodic_scanning']))
+
 
         self.properties["bluetooth_audio_receiver"] = BluetoothpairingProperty(
                             self,
@@ -1347,6 +1441,9 @@ class BluetoothpairingProperty(Property):
             
             if self.name == 'bluetooth_power':
                 self.device.adapter.api_handler.set_power(value)
+                
+            if self.name == 'periodic_scanning':
+                self.device.adapter.api_handler.set_periodic_scanning(value)
             
             elif self.name == 'bluetooth_audio_receiver':
                 self.device.adapter.api_handler.set_audio_receiver(value)
