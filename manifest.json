@@ -92,7 +92,7 @@
     }
   },
   "short_name": "Bluetooth",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "web_accessible_resources": [
     "audio/*.wav",
     "css/*.css",
