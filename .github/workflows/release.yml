@@ -233,7 +233,7 @@ jobs:
               echo "PYTHON_VERSION: $PYTHON_VERSION"
               ADDON_ARCH="${{ matrix.platform }}" ./package.sh "${{ matrix.platform }}" "${{ matrix.language }}" "${{ matrix.version }}"
               ls -lh
-              cp voco* ..
+              cp bluetoothpairing* ..
 
       #- name: Show the artifact
         # Items placed in /build in the container will be in
