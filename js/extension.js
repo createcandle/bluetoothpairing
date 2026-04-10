@@ -132,7 +132,7 @@
 
 	            ).then((body) => {
 	                if(this.debug){
-	                    console.log("bluetooth denug: got API /poll response. this.get_paired,body: ", this.get_paired, body);
+	                    console.log("bluetooth debug: got API /poll response. this.get_paired,body: ", this.get_paired, body);
 	                }
 					this.parse_body(body);
 					this.busy_polling = false;
@@ -408,7 +408,7 @@
                             //console.log(event);
                             info_panel.innerHTML = '';
                             //const target = event.currentTarget;
-                            const main_item = event.currentTarget?.closest('.extension-bluetoothpairing-item');
+                            const main_item = pair_button.closest('.extension-bluetoothpairing-item');
                             //var main_item = target.parentElement.parentElement.parentElement; //parent of "target"
                             
 							if(main_item){
@@ -473,7 +473,7 @@
                             
                             info_panel.innerHTML = '';
                             //var main_item = target.parentElement.parentElement.parentElement; //parent of "target"
-                            const main_item = event.currentTarget?.closest(event.currentTarget,'.extension-bluetoothpairing-item');
+                            const main_item = pair_button.closest('.extension-bluetoothpairing-item');
                             //console.log(main_item);
                             if(main_item){
                             	main_item.classList.add("extension-bluetoothpairing-item-pairing");
@@ -595,7 +595,7 @@
                     checkbox.addEventListener('change', (event) => {
                         
                         var target = event.currentTarget;
-                        var main_item = this.getClosest(target,'.extension-bluetoothpairing-item');
+                        var main_item = checkbox.closest('.extension-bluetoothpairing-item');
                         info_panel.innerHTML = '';
                         //var main_item = target.parentElement.parentElement.parentElement.parentElement; //parent of "target"
                         //console.log(main_item);
