@@ -301,10 +301,10 @@ class BluetoothpairingAPIHandler(APIHandler):
             if self.DEBUG:
                 print("-Scannning interval preference was in config: " + str(self.periodic_scanning_interval))
         
-        if 'Airtag certainty duration' in config:
-            self.suspiciousness_duration = int(config['Airtag certainty duration']) * 60
+        if 'Airtag certainty delay' in config:
+            self.suspiciousness_duration = int(config['Airtag certainty delay']) * 60
             if self.DEBUG:
-                print("-Airtag certainty duration preference was in config: " + str(self.suspiciousness_duration))
+                print("-Airtag certainty delay preference was in config: " + str(self.suspiciousness_duration))
         
         #if 'Do not scan when the addon starts' in config:
         #    self.do_device_scan = not bool(config['Do not scan when the addon starts'])
