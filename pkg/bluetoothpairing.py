@@ -353,11 +353,11 @@ class BluetoothpairingAPIHandler(APIHandler):
                             time.sleep(2) # make sure other commands have finished
                     
                             if self.running:
-                                self.set_currently_scanning_on_thing(True)
+                                self.adapter.set_currently_scanning_on_thing(True)
                                 #scan_output = self.bluetoothctl('--timeout ' + str(self.scan_duration) + ' scan on>/dev/null')
                                 subprocess.Popen(["sudo","bluetoothctl","--timeout",str(self.scan_duration),"scan","on"],stdout=subprocess.PIPE) # running this alongside the Bleak scan helps it detect non-BLE devices too.
                                 scan_output = run_command("sudo python3 " + str(self.scanner_path) + ' ' + str(self.scan_duration))
-                                self.set_currently_scanning_on_thing(False)
+                                self.adapter.set_currently_scanning_on_thing(False)
                                 if self.DEBUG:
                                     print("scan output: \n" + str(scan_output))
                                 try:
