@@ -137,7 +137,7 @@ class BluetoothpairingAPIHandler(APIHandler):
             
             
         except Exception as ex:
-            print("error parsing manufacturers csv: " + str(ex))
+            print("caught error parsing manufacturers csv: " + str(ex))
         
         
         
@@ -220,7 +220,7 @@ class BluetoothpairingAPIHandler(APIHandler):
 
         except Exception as ex:
             if self.DEBUG:
-                print("Failed to start Bluetoothpairing ADAPTER. Error: " + str(ex))
+                print("\nERROR, failed to start Bluetoothpairing ADAPTER: " + str(ex))
 
 
         # Restore states from persistent data
@@ -245,6 +245,7 @@ class BluetoothpairingAPIHandler(APIHandler):
         # Start clock thread
         self.running = True
         
+        time.sleep(1)
         if self.DEBUG:
             print("Starting the internal clock")
         try:
@@ -504,6 +505,7 @@ class BluetoothpairingAPIHandler(APIHandler):
             if result:
                 for line in result:
                     try:
+                        line = str(line)
                         if 'Device' in line:
                             line2 = line.split('Device ')[1]
                             if self.DEBUG:
@@ -526,11 +528,18 @@ class BluetoothpairingAPIHandler(APIHandler):
                                 info_test = self.bluetoothctl('info ' + device['address'])
                         
                                 device['info'] = info_test
+                                
                         
                                 for line in info_test:
                             
                                     #if self.DEBUG:
                                     #    print("- info test line: " + str(line))
+                                    
+                                    if line.startswith('Name:'):
+                                        info_name = line.replace('Name:','').strip()
+                                        if len(info_name) > 3 and len(info_name) < 20:
+                                            device['name'] = info_name
+                                    
                                     if 'Icon: audio-card' in line:
                                          device['type'] = 'audio-card'
                                          if self.DEBUG:
@@ -859,7 +868,7 @@ class BluetoothpairingAPIHandler(APIHandler):
             #    if self.DEBUG:
             #        print("Disabling discoverable cancelled: device is currently busy scanning")
             #    self.bluetoothctl('discoverable off')
-            
+        
         self.adapter.set_discoverable_on_thing(state)
             
 
@@ -1226,6 +1235,7 @@ class BluetoothpairingAdapter(Adapter):
         #print("adapter name = " + self.name)
         self.adapter_name = self.api_handler.addon_name #'Bluetoothpairing-adapter'
         Adapter.__init__(self, self.adapter_name, self.adapter_name, verbose=verbose)
+        
         self.DEBUG = self.api_handler.DEBUG
         
         try:
@@ -1340,13 +1350,15 @@ class BluetoothpairingDevice(Device):
         adapter -- the Adapter managing this device
         """
 
+
+        self.adapter = adapter
+        self.DEBUG = self.adapter.DEBUG
         
         Device.__init__(self, adapter, device_name)
         #print("Creating Bluetoothpairing thing")
-        
         self._id = device_name
         self.id = device_name
-        self.adapter = adapter
+
         self.api_handler = self.adapter.api_handler
         self._type.append(device_type)
         if 'BinarySensor' not in self._type:
