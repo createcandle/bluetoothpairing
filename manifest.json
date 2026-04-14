@@ -28,7 +28,7 @@
     "default": {
 	  "Periodic scanning interval": "1",
 	  "Periodic scanning duration": "1",
-	  "Airtag certainty duration": "30",
+	  "Airtag certainty delay": "30",
 	  "Show tracker pop-up": false,
       "Debugging": false
     },
@@ -69,7 +69,7 @@
           ],
           "type": "string"
         },
-        "Airtag certainty duration": {
+        "Airtag certainty delay": {
           "description": "When a new Airtag is discovered it takes a while before it's certain that it has been separated from its owner. In theory this should be clear after 15 minutes, but in practise this seems to take up to 30 minutes. The default is 30. If you set it to a lower value you may be notified of Airtags sooner, but at the cost of getting false alarms.",
           "enum": [
               "30",
@@ -92,7 +92,7 @@
     }
   },
   "short_name": "Bluetooth",
-  "version": "0.6.6",
+  "version": "0.6.7",
   "web_accessible_resources": [
     "audio/*.wav",
     "css/*.css",
