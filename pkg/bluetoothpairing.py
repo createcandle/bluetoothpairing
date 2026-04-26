@@ -537,7 +537,7 @@ class BluetoothpairingAPIHandler(APIHandler):
                                     
                                     if line.startswith('Name:'):
                                         info_name = line.replace('Name:','').strip()
-                                        if len(info_name) > 3 and len(info_name) < 20 and info_name.lower() != 'none':
+                                        if len(info_name) > 3 and len(info_name) < 20 and str(info_name).lower().strip() != 'none':
                                             device['name'] = info_name
                                     
                                     if 'Icon: audio-card' in line:
