@@ -846,9 +846,11 @@
 			//this.view.innerHTML = "x";
 			
 			try{
-                if(document.getElementById('extension-bluetoothpairing-menu-item').classList.contains('selected') == false){
-                    this.view.innerHTML = "";
-                }
+				window.setTimeout(() => {
+                	if(document.getElementById('extension-bluetoothpairing-menu-item').classList.contains('selected') == false){
+                    	this.view.innerHTML = "";
+                	}
+				},1000);
 			}
             catch(err){
                 console.error("bluetooth: caught error clearing view HTML in hide: ", err);
