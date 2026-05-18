@@ -815,6 +815,10 @@
                             clone.classList.add('extension-bluetoothpairing-item-name-is-mac');
                         	list.append(clone);
                         }
+                        else if( items[item]['name'] == 'None' ){
+                            clone.classList.add('extension-bluetoothpairing-item-name-is-mac');
+                        	list.append(clone);
+                        }
     					else{
     						list.prepend(clone);
     					}

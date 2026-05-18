@@ -62,6 +62,9 @@ class BluetoothpairingAPIHandler(APIHandler):
         self.persistent_data = {'connected':[],'power':True,'audio_receiver':False}
         
 
+        os.system('sudo touch /run/ble_advertisements.json')
+        os.system('sudo chown pi:pi /run/ble_advertisements.json')
+
         self.blues_version = int(run_command('bluetoothctl --version | cut -d "." -f2'))
         
         # Device scanning
@@ -540,6 +543,9 @@ class BluetoothpairingAPIHandler(APIHandler):
                                         if len(info_name) > 3 and len(info_name) < 20 and str(info_name).lower().strip() != 'none':
                                             device['name'] = info_name
                                     
+                                    if device['name'] == 'None' and 'alias' in device:
+                                        device['name'] = device['alias']
+
                                     if 'Icon: audio-card' in line:
                                          device['type'] = 'audio-card'
                                          if self.DEBUG:
