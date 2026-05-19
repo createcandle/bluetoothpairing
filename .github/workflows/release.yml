@@ -16,7 +16,7 @@ jobs:
     - name: Dump upload url to file
       run: echo '${{ steps.get_release.outputs.upload_url }}' > upload_url
     - name: Upload upload_url
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: upload_url
         path: upload_url
@@ -59,7 +59,7 @@ jobs:
 
     steps:
     - name: Download upload_url
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: upload_url
         path: upload_url
@@ -69,7 +69,7 @@ jobs:
       run: echo "RELEASE_VERSION=${GITHUB_REF:10}" >> $GITHUB_ENV
     - uses: actions/checkout@v3
     - name: Use Python ${{ matrix.version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.version }}
 #    - name: Make build script executable
@@ -113,7 +113,7 @@ jobs:
     - name: Dump upload url to file
       run: echo '${{ steps.get_release.outputs.upload_url }}' > upload_url_old
     - name: Upload upload_url_old
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: upload_url_old
         path: upload_url_old
@@ -136,7 +136,7 @@ jobs:
 
     steps:
       - name: Download upload_url_old
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: upload_url_old
           path: upload_url_old
@@ -146,7 +146,7 @@ jobs:
         run: echo "UPLOAD_URL_OLD=$(cat upload_url_old/upload_url_old)" >> $GITHUB_ENV
       - name: Set release version
         run: echo "RELEASE_VERSION=${GITHUB_REF:10}" >> $GITHUB_ENV
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           path: './build'
       #- name: Make packaging script executable
